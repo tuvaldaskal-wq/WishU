@@ -6,8 +6,15 @@ import axios from "axios";
 // CONFIGURATION & INITIALIZATION
 // ============================================================================
 
-// Initialize Firebase Admin
-admin.initializeApp();
+// Initialize Firebase Admin lazily
+let adminApp: admin.app.App | undefined;
+
+function getAdmin(): admin.app.App {
+    if (!adminApp) {
+        adminApp = admin.initializeApp();
+    }
+    return adminApp;
+}
 
 // ScrapingBee API configuration
 const SCRAPINGBEE_API_URL = "https://app.scrapingbee.com/api/v1/";
@@ -175,6 +182,7 @@ export const scrapeProductDetails = functions
     .region(REGION)
     .runWith(runtimeOpts)
     .https.onCall(async (data, context): Promise<ScrapedResult> => {
+        getAdmin(); // Ensure initialization
         const url = data.url as string;
 
         if (!url) return { title: "", description: "", image: "", error: "No URL" };
@@ -257,6 +265,7 @@ export const pingV2 = functions
     .region(REGION)
     .runWith(runtimeOpts)
     .https.onRequest((req, res) => {
+        getAdmin(); // Ensure initialization
         console.log("Ping triggered!");
         res.send("Pong v1 Europe!");
     });
@@ -270,6 +279,7 @@ export const sendPushNotificationV2 = functions
     .runWith(runtimeOpts)
     .firestore.document("notifications/{notificationId}")
     .onCreate(async (snapshot, context) => {
+        getAdmin(); // Ensure initialization
         const notificationId = snapshot.id;
         console.log(`[START] sendPushNotificationV2 triggered for ID: ${notificationId}`);
         const notification = snapshot.data();
