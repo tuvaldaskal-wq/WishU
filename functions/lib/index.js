@@ -1,241 +1,199 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.sendPushNotificationV2 = exports.pingV2 = exports.scrapeProductDetails = void 0;
-const https_1 = require("firebase-functions/v2/https");
-const firestore_1 = require("firebase-functions/v2/firestore");
-const options_1 = require("firebase-functions/v2/options");
-const firebase_admin_1 = __importDefault(require("firebase-admin"));
+const functions = __importStar(require("firebase-functions"));
+const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
 // ============================================================================
 // CONFIGURATION & INITIALIZATION
 // ============================================================================
-function getAdmin() {
-    if (firebase_admin_1.default.apps.length === 0) {
-        firebase_admin_1.default.initializeApp({
-            projectId: 'wishu-c16d5'
-        });
-    }
-    return firebase_admin_1.default;
-}
-// Set Global Options for ALL V2 functions in this file
-(0, options_1.setGlobalOptions)({
-    region: "europe-west1",
-    memory: "512MiB",
-    timeoutSeconds: 60
-});
+// Initialize Firebase Admin
+admin.initializeApp();
 // ScrapingBee API configuration
 const SCRAPINGBEE_API_URL = "https://app.scrapingbee.com/api/v1/";
-// ============================================================================
-// HELPERS
-// ============================================================================
-// Site-specific CSS selectors for element-based waiting
-const WAIT_FOR_SELECTORS = {
-    "adidas.": ".product-description,.product-row,.gl-product-card,.product-details",
-    "zara.": ".product-detail,.product-card,[data-qa=\"product-price\"]",
-    "nike.": ".product-info,.product-card,.css-b9fpep",
-    "hm.": ".product-item,.product-detail,.pdp-content",
-    "shein.": ".product-info,.goods-detail,.product-intro",
+// Runtime options for functions
+const runtimeOpts = {
+    timeoutSeconds: 60,
+    memory: "512MB"
 };
+// Region configuration
+const REGION = "europe-west1";
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+function cleanUrl(url) {
+    let cleaned = url.trim();
+    cleaned = cleaned.replace(/([?&])(utm_[^&]*|ref[^&]*|affiliate[^&]*|source[^&]*|fbclid[^&]*|gclid[^&]*|mc_[^&]*)/gi, '$1');
+    cleaned = cleaned.replace(/[?&]+$/, '');
+    cleaned = cleaned.replace(/\?&/, '?');
+    return cleaned;
+}
 function getWaitForSelector(url) {
-    try {
-        const hostname = new URL(url).hostname.toLowerCase();
-        for (const [domain, selector] of Object.entries(WAIT_FOR_SELECTORS)) {
-            if (hostname.includes(domain))
-                return selector;
-        }
-    }
-    catch { }
+    const lowerUrl = url.toLowerCase();
+    if (lowerUrl.includes("zara.com"))
+        return ".product-detail-view__main-info";
+    if (lowerUrl.includes("adidas"))
+        return ".product-description";
+    if (lowerUrl.includes("shein.com") || lowerUrl.includes("shein.co.il"))
+        return ".product-intro";
+    if (lowerUrl.includes("hm.com"))
+        return "[data-testid=\"productName\"]";
+    if (lowerUrl.includes("asos.com"))
+        return "#product-details";
     return null;
 }
 function isBlockPage(html) {
-    const lower = html.toLowerCase();
-    const textIndicators = [
-        "akamai", "access denied", "bot protection", "verify you are a human",
-        "security check", "please enable javascript", "enable cookies",
-        "reference id:", "cloudflare",
+    const blockIndicators = [
+        "access denied", "are you a robot", "security check",
+        "blocked", "captcha", "cloudflare", "ray id",
+        "enable javascript", "403 forbidden"
     ];
-    if (textIndicators.some(i => lower.includes(i)))
-        return true;
-    if (html.includes("akamai.com") || html.includes("akamai-logo"))
-        return true;
-    return false;
-}
-function cleanUrl(url) {
-    try {
-        const u = new URL(url);
-        ["utm_source", "utm_medium", "utm_campaign", "fbclid", "gclid"].forEach(p => u.searchParams.delete(p));
-        return u.toString();
-    }
-    catch {
-        return url;
-    }
+    const lowerHtml = html.toLowerCase();
+    return blockIndicators.some(indicator => lowerHtml.includes(indicator));
 }
 function extractTitle(html) {
-    const match = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']+)["']/i) ||
-        html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    return match ? match[1].trim() : "";
+    const ogMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i);
+    if (ogMatch?.[1])
+        return ogMatch[1].trim();
+    const twitterMatch = html.match(/<meta[^>]*name=["']twitter:title["'][^>]*content=["']([^"']*)["']/i);
+    if (twitterMatch?.[1])
+        return twitterMatch[1].trim();
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    if (titleMatch?.[1])
+        return titleMatch[1].trim().split('|')[0].split('-')[0].trim();
+    return "";
 }
 function extractDescription(html) {
-    const match = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']+)["']/i) ||
-        html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']+)["']/i);
-    return match ? match[1] : "";
+    const ogMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i);
+    if (ogMatch?.[1])
+        return ogMatch[1].trim();
+    const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
+    if (metaMatch?.[1])
+        return metaMatch[1].trim();
+    return "";
 }
 function extractImage(html) {
-    const match = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']+)["']/i) ||
-        html.match(/<meta[^>]*property=["']product:image["'][^>]*content=["']([^"']+)["']/i);
-    return match ? match[1] : "";
+    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i);
+    if (ogMatch?.[1] && ogMatch[1].startsWith('http'))
+        return ogMatch[1].trim();
+    const twitterMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']*)["']/i);
+    if (twitterMatch?.[1] && twitterMatch[1].startsWith('http'))
+        return twitterMatch[1].trim();
+    return "";
+}
+function extractPrice(html) {
+    // JSON-LD extraction
+    const jsonLdMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
+    for (const match of jsonLdMatches) {
+        try {
+            const parsed = JSON.parse(match[1]);
+            const price = findPriceInObject(parsed);
+            if (price)
+                return { ...price, source: "jsonld" };
+        }
+        catch { }
+    }
+    // Meta tag extraction
+    const metaMatch = html.match(/<meta[^>]*property=["']product:price:amount["'][^>]*content=["']([^"']*)["']/i);
+    if (metaMatch?.[1]) {
+        return { price: metaMatch[1], currency: "ILS", source: "meta" };
+    }
+    // Regex extraction
+    const priceMatches = html.match(/(?:₪|ILS|NIS)\s*([\d,]+(?:\.\d{2})?)|(?:[\d,]+(?:\.\d{2})?)\s*(?:₪|ILS|NIS)/gi);
+    if (priceMatches?.[0]) {
+        const cleanPrice = priceMatches[0].replace(/[^\d.,]/g, '');
+        return { price: cleanPrice, currency: "ILS", source: "regex" };
+    }
+    return { price: null, currency: null, source: "none" };
+}
+function findPriceInObject(obj, depth = 0) {
+    if (depth > 10)
+        return null;
+    if (!obj || typeof obj !== "object")
+        return null;
+    if (obj["@type"] === "Offer" || obj["@type"] === "Product") {
+        if (obj.price || obj.offers?.price) {
+            return {
+                price: String(obj.price || obj.offers?.price),
+                currency: obj.priceCurrency || obj.offers?.priceCurrency || "ILS"
+            };
+        }
+    }
+    if (Array.isArray(obj)) {
+        for (const item of obj) {
+            const result = findPriceInObject(item, depth + 1);
+            if (result)
+                return result;
+        }
+    }
+    else {
+        for (const key of Object.keys(obj)) {
+            const result = findPriceInObject(obj[key], depth + 1);
+            if (result)
+                return result;
+        }
+    }
+    return null;
 }
 function normalizePrice(price, currency) {
     if (!price)
         return "";
-    let cleanPrice = price.trim();
-    if (/[₪$€£]/.test(cleanPrice))
-        return cleanPrice;
-    const currencySymbols = {
-        ILS: "₪", NIS: "₪", USD: "$", EUR: "€", GBP: "£",
-    };
-    const symbol = currency ? (currencySymbols[currency.toUpperCase()] || currency) : "₪";
-    return symbol === "₪" ? `${cleanPrice}${symbol}` : `${symbol}${cleanPrice}`;
-}
-function findPricesInObject(obj, prices, depth) {
-    if (depth > 15 || !obj)
-        return;
-    if (Array.isArray(obj)) {
-        obj.forEach(item => findPricesInObject(item, prices, depth + 1));
-        return;
-    }
-    if (typeof obj !== "object")
-        return;
-    const objType = obj["@type"];
-    const isOffer = objType === "Offer" || objType === "AggregateOffer";
-    const isProduct = objType === "Product";
-    if (obj.price !== undefined && obj.price !== null) {
-        const priceVal = String(obj.price);
-        if (/\d/.test(priceVal)) {
-            prices.push({
-                price: priceVal,
-                currency: obj.priceCurrency || "ILS",
-                confidence: isOffer ? 100 : isProduct ? 80 : 50
-            });
-        }
-    }
-    if (obj.lowPrice !== undefined) {
-        prices.push({
-            price: String(obj.lowPrice),
-            currency: obj.priceCurrency || "ILS",
-            confidence: isOffer ? 90 : 40
-        });
-    }
-    if (obj.highPrice !== undefined) {
-        prices.push({
-            price: String(obj.highPrice),
-            currency: obj.priceCurrency || "ILS",
-            confidence: 30
-        });
-    }
-    for (const key of Object.keys(obj)) {
-        if (obj[key] && typeof obj[key] === "object") {
-            findPricesInObject(obj[key], prices, depth + 1);
-        }
-    }
-}
-function extractPrice(html) {
-    console.log("extractPrice: Starting price extraction...");
-    // 1. Meta Tags
-    let m = html.match(/<meta[^>]*property=["'](og:price:amount|product:price:amount)["'][^>]*content=["']([^"']+)["']/i);
-    if (m && /\d/.test(m[2])) {
-        console.log("extractPrice: Found meta tag price:", m[2]);
-        let cur = "ILS";
-        const curMatch = html.match(/<meta[^>]*property=["'](og:price:currency|product:price:currency)["'][^>]*content=["']([^"']+)["']/i);
-        if (curMatch)
-            cur = curMatch[2];
-        return { price: m[2], currency: cur, source: "meta" };
-    }
-    // 2. JSON-LD
-    console.log("extractPrice: Searching JSON-LD...");
-    try {
-        const regex = /<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi;
-        let match;
-        const allPrices = [];
-        while ((match = regex.exec(html)) !== null) {
-            try {
-                const jsonStr = match[1].trim();
-                const parsed = JSON.parse(jsonStr);
-                findPricesInObject(parsed, allPrices, 0);
-            }
-            catch (e) { }
-        }
-        if (allPrices.length > 0) {
-            allPrices.sort((a, b) => b.confidence - a.confidence);
-            console.log("extractPrice: Found JSON-LD prices:", allPrices);
-            return { price: allPrices[0].price, currency: allPrices[0].currency || "ILS", source: "jsonld" };
-        }
-    }
-    catch (e) {
-        console.log("extractPrice: JSON-LD extraction error:", e);
-    }
-    // 3. HTML Patterns
-    console.log("extractPrice: Trying HTML class patterns...");
-    const htmlPatterns = [
-        /class="[^"]*price[^"]*"[^>]*>([^<]*₪[^<]*|\d{1,3}[,.]?\d*[^<]*₪)/gi,
-        /class="[^"]*gl-price[^"]*"[^>]*>([^<]+)/gi,
-        /data-testid="[^"]*price[^"]*"[^>]*>([^<]+)/gi,
-        /<span[^>]*class="[^"]*sale-price[^"]*"[^>]*>([^<]+)/gi,
-        /<div[^>]*class="[^"]*product-price[^"]*"[^>]*>([^<]+)/gi,
-    ];
-    for (const pattern of htmlPatterns) {
-        pattern.lastIndex = 0;
-        const htmlMatch = pattern.exec(html);
-        if (htmlMatch) {
-            const priceText = htmlMatch[1].replace(/<[^>]+>/g, '').trim();
-            const numMatch = priceText.match(/(\d{1,3}(?:[,.]?\d{3})*(?:[.,]\d{1,2})?)/);
-            if (numMatch) {
-                console.log("extractPrice: Found HTML class price:", numMatch[1]);
-                return { price: numMatch[1], currency: "ILS", source: "html" };
-            }
-        }
-    }
-    // 4. Regex Fallback
-    console.log("extractPrice: Trying regex patterns...");
-    const regexPatterns = [
-        /₪\s*(\d{1,3}(?:[,.]?\d{3})*(?:[.,]\d{1,2})?)/g,
-        /(\d{1,3}(?:[,.]?\d{3})*(?:[.,]\d{1,2})?)\s*₪/g,
-        /(\d{1,3}(?:[,.]?\d{3})*(?:[.,]\d{1,2})?)\s*ש"ח/g,
-        /ILS\s*(\d{1,3}(?:[,.]?\d{3})*(?:[.,]\d{1,2})?)/gi,
-        /(\d{1,3}(?:[,.]?\d{3})*(?:[.,]\d{1,2})?)\s*ILS/gi,
-    ];
-    for (const pattern of regexPatterns) {
-        pattern.lastIndex = 0;
-        const regexMatch = pattern.exec(html);
-        if (regexMatch) {
-            const price = regexMatch[1];
-            const priceNum = parseFloat(price.replace(/,/g, ''));
-            if (priceNum > 0 && priceNum < 100000) {
-                console.log("extractPrice: Found regex price:", price);
-                return { price, currency: "ILS", source: "regex" };
-            }
-        }
-    }
-    return { source: "none" };
+    let cleaned = price.replace(/,/g, '');
+    const num = parseFloat(cleaned);
+    if (isNaN(num))
+        return price;
+    return `${num.toFixed(2)} ${currency || "₪"}`;
 }
 // ============================================================================
 // FUNCTIONS
 // ============================================================================
 /**
- * V2 Function: Scrape Product Details
- * Uses onCall from firebase-functions/v2/https
+ * V1 Function: Scrape Product Details
  */
-exports.scrapeProductDetails = (0, https_1.onCall)(async (request) => {
-    getAdmin(); // Ensure initialization
-    // In V2, data is accessed via request.data
-    const data = request.data;
+exports.scrapeProductDetails = functions
+    .region(REGION)
+    .runWith(runtimeOpts)
+    .https.onCall(async (data, context) => {
     const url = data.url;
     if (!url)
         return { title: "", description: "", image: "", error: "No URL" };
-    const apiKey = process.env.SCRAPINGBEE_API_KEY;
+    const apiKey = functions.config().scrapingbee?.api_key;
     if (!apiKey)
         return { title: "", description: "", image: "", error: "Config missing" };
     const cleanedUrl = cleanUrl(url);
@@ -281,7 +239,7 @@ exports.scrapeProductDetails = (0, https_1.onCall)(async (request) => {
             description,
             image,
             price: normalizePrice(priceData.price || "", priceData.currency),
-            currency: priceData.currency,
+            currency: priceData.currency || undefined,
             priceSource: priceData.source,
             _debug: {
                 htmlLength: html.length,
@@ -298,26 +256,24 @@ exports.scrapeProductDetails = (0, https_1.onCall)(async (request) => {
     }
 });
 /**
- * V2 Function: Health Check Ping
- * Uses onRequest from firebase-functions/v2/https
+ * V1 Function: Health Check Ping
  */
-exports.pingV2 = (0, https_1.onRequest)((req, res) => {
-    getAdmin(); // Ensure initialization
+exports.pingV2 = functions
+    .region(REGION)
+    .runWith(runtimeOpts)
+    .https.onRequest((req, res) => {
     console.log("Ping triggered!");
-    res.send("Pong v2 Europe!");
+    res.send("Pong v1 Europe!");
 });
 /**
- * V2 Function: Send Push Notifications
+ * V1 Function: Send Push Notifications
  * Triggered by creation of documents in 'notifications' collection.
- * Uses onDocumentCreated from firebase-functions/v2/firestore
  */
-exports.sendPushNotificationV2 = (0, firestore_1.onDocumentCreated)("notifications/{notificationId}", async (event) => {
-    getAdmin(); // Ensure initialization
-    const snapshot = event.data;
-    if (!snapshot) {
-        console.log("No data associated with the event");
-        return;
-    }
+exports.sendPushNotificationV2 = functions
+    .region(REGION)
+    .runWith(runtimeOpts)
+    .firestore.document("notifications/{notificationId}")
+    .onCreate(async (snapshot, context) => {
     const notificationId = snapshot.id;
     console.log(`[START] sendPushNotificationV2 triggered for ID: ${notificationId}`);
     const notification = snapshot.data();
@@ -326,7 +282,7 @@ exports.sendPushNotificationV2 = (0, firestore_1.onDocumentCreated)("notificatio
         console.error(`[ERROR] No userId found in notification: ${notificationId}`);
         return;
     }
-    const userRef = firebase_admin_1.default.firestore().collection("users").doc(userId);
+    const userRef = admin.firestore().collection("users").doc(userId);
     const userDoc = await userRef.get();
     const userData = userDoc.data();
     if (!userData || !userData.fcmTokens || !Array.isArray(userData.fcmTokens) || userData.fcmTokens.length === 0) {
@@ -363,7 +319,7 @@ exports.sendPushNotificationV2 = (0, firestore_1.onDocumentCreated)("notificatio
             }
         };
         try {
-            const response = await firebase_admin_1.default.messaging().send(message);
+            const response = await admin.messaging().send(message);
             console.log(`[SUCCESS] Notification sent to token ${token.substring(0, 10)}... | Msg ID: ${response}`);
             successCount++;
         }
@@ -375,7 +331,7 @@ exports.sendPushNotificationV2 = (0, firestore_1.onDocumentCreated)("notificatio
                 console.log(`[CLEANUP] Removing invalid token: ${token}`);
                 try {
                     await userRef.update({
-                        fcmTokens: firebase_admin_1.default.firestore.FieldValue.arrayRemove(token)
+                        fcmTokens: admin.firestore.FieldValue.arrayRemove(token)
                     });
                     console.log(`[CLEANUP] Token removed successfully.`);
                 }
