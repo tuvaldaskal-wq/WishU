@@ -1,0 +1,9 @@
+﻿
+> wishu@0.1.0 build
+> tsc && vite build
+
+src/components/gifts/Wishlist.tsx(8,1): error TS6133: 'EditGiftModal' is declared but its value is never read.
+src/components/gifts/Wishlist.tsx(9,1): error TS6133: 'AnimatePresence' is declared but its value is never read.
+src/context/ModalContext.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
+src/pages/FriendWall.tsx(10,1): error TS6133: 'EditGiftModal' is declared but its value is never read.
+src/pages/FriendWall.tsx(11,1): error TS6133: 'AnimatePresence' is declared but its value is never read.

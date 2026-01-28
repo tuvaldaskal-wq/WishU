@@ -1,0 +1,8 @@
+﻿
+> wishu@0.1.0 build
+> tsc && vite build
+
+src/components/gifts/Wishlist.tsx(113,41): error TS2322: Type '{ gift: Gift; isOwner: boolean; onEdit: Dispatch<SetStateAction<Gift | null>>; }' is not assignable to type 'IntrinsicAttributes & GiftCardProps'.
+  Property 'onEdit' does not exist on type 'IntrinsicAttributes & GiftCardProps'.
+src/components/gifts/Wishlist.tsx(138,29): error TS2322: Type '{ key: string; gift: Gift; isOwner: boolean; onEdit: Dispatch<SetStateAction<Gift | null>>; }' is not assignable to type 'IntrinsicAttributes & GiftCardProps'.
+  Property 'onEdit' does not exist on type 'IntrinsicAttributes & GiftCardProps'.

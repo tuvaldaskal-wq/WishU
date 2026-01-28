@@ -1,0 +1,5 @@
+﻿
+> wishu@0.1.0 build
+> tsc && vite build
+
+src/pages/FriendWall.tsx(9,23): error TS6133: 'Sparkles' is declared but its value is never read.

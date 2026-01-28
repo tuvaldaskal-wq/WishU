@@ -1,0 +1,34 @@
+﻿{
+  "status": "success",
+  "result": [
+    {
+      "platform": "gcfv1",
+      "id": "scrapeProductDetails",
+      "project": "wishu-c16d5",
+      "region": "us-central1",
+      "callableTrigger": {},
+      "entryPoint": "scrapeProductDetails",
+      "runtime": "nodejs20",
+      "uri": "https://us-central1-wishu-c16d5.cloudfunctions.net/scrapeProductDetails",
+      "securityLevel": "SECURE_ALWAYS",
+      "ingressSettings": "ALLOW_ALL",
+      "labels": {
+        "deployment-callable": "true",
+        "firebase-functions-hash": "c1a78c7a09e198ee48618327b517035a33d6070f",
+        "deployment-tool": "cli-firebase"
+      },
+      "environmentVariables": {
+        "FIREBASE_CONFIG": "{\"projectId\":\"wishu-c16d5\",\"storageBucket\":\"wishu-c16d5.firebasestorage.app\"}",
+        "GCLOUD_PROJECT": "wishu-c16d5",
+        "EVENTARC_CLOUD_EVENT_SOURCE": "projects/wishu-c16d5/locations/us-central1/functions/scrapeProductDetails"
+      },
+      "sourceUploadUrl": "https://storage.googleapis.com/uploads-55432197804.us-central1.cloudfunctions.appspot.com/70686e61-402d-4bb7-8d61-cac11d1ec7d6.zip",
+      "serviceAccount": "wishu-c16d5@appspot.gserviceaccount.com",
+      "availableMemoryMb": 512,
+      "timeoutSeconds": 60,
+      "codebase": "default",
+      "hash": "c1a78c7a09e198ee48618327b517035a33d6070f",
+      "state": "ACTIVE"
+    }
+  ]
+}

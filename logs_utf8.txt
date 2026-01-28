@@ -1,0 +1,71 @@
+﻿[
+  {
+    "execution_id": "bs5lfvwthvav",
+    "level": "E",
+    "log": "Error: process.env.GCLOUD_PROJECT is not set.\n    at /workspace/node_modules/firebase-functions/lib/providers/firestore.js:102:23\n    at cloudFunction (/workspace/node_modules/firebase-functions/lib/cloud-functions.js:60:13)\n    at /layers/google.nodejs.functions-framework/functions-framework/node_modules/@google-cloud/functions-framework/build/src/function_wrappers.js:147:25\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 13:07:52.053"
+  },
+  {
+    "execution_id": "bs5lfvwthvav",
+    "level": "D",
+    "log": "Function execution took 28 ms, finished with status: 'error'",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 13:07:51.067"
+  },
+  {
+    "execution_id": "bs5lfvwthvav",
+    "level": "D",
+    "log": "Function execution started",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 13:07:51.039"
+  },
+  {
+    "execution_id": "bs5lbz46c60l",
+    "level": "E",
+    "log": "Error: process.env.GCLOUD_PROJECT is not set.\n    at /workspace/node_modules/firebase-functions/lib/providers/firestore.js:102:23\n    at cloudFunction (/workspace/node_modules/firebase-functions/lib/cloud-functions.js:60:13)\n    at /layers/google.nodejs.functions-framework/functions-framework/node_modules/@google-cloud/functions-framework/build/src/function_wrappers.js:147:25\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 12:56:53.250"
+  },
+  {
+    "execution_id": "bs5lbz46c60l",
+    "level": "D",
+    "log": "Function execution took 179 ms, finished with status: 'error'",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 12:56:52.195"
+  },
+  {
+    "execution_id": "bs5lbz46c60l",
+    "level": "D",
+    "log": "Function execution started",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 12:56:52.015"
+  },
+  {
+    "level": "WARNING",
+    "log": "Warning, FIREBASE_CONFIG and GCLOUD_PROJECT environment variables are missing. Initializing firebase-admin will fail",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 12:48:37.959"
+  },
+  {
+    "execution_id": "okc80jp0n23u",
+    "level": "E",
+    "log": "Error: process.env.GCLOUD_PROJECT is not set.\n    at /workspace/node_modules/firebase-functions/lib/providers/firestore.js:102:23\n    at cloudFunction (/workspace/node_modules/firebase-functions/lib/cloud-functions.js:60:13)\n    at /layers/google.nodejs.functions-framework/functions-framework/node_modules/@google-cloud/functions-framework/build/src/function_wrappers.js:147:25\n    at process.processTicksAndRejections (node:internal/process/task_queues:95:5)",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 12:41:41.039"
+  },
+  {
+    "execution_id": "okc80jp0n23u",
+    "level": "D",
+    "log": "Function execution took 7 ms, finished with status: 'error'",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 12:41:39.962"
+  },
+  {
+    "execution_id": "okc80jp0n23u",
+    "level": "D",
+    "log": "Function execution started",
+    "name": "sendPushNotification",
+    "time_utc": "2026-01-26 12:41:39.955"
+  }
+]

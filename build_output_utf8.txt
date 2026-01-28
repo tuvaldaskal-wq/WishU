@@ -1,0 +1,9 @@
+﻿
+> wishu@0.1.0 build
+> tsc && vite build
+
+src/components/gifts/GiftCard.tsx(33,43): error TS6133: 'onEdit' is declared but its value is never read.
+src/pages/GiftDetailPage.tsx(3,24): error TS6133: 'Check' is declared but its value is never read.
+src/pages/GiftDetailPage.tsx(4,23): error TS6133: 'updateDoc' is declared but its value is never read.
+src/pages/GiftDetailPage.tsx(7,1): error TS6133: 'motion' is declared but its value is never read.
+src/pages/GiftDetailPage.tsx(13,11): error TS6133: 'user' is declared but its value is never read.

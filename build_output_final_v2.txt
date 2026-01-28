@@ -1,0 +1,5 @@
+﻿
+> wishu@0.1.0 build
+> tsc && vite build
+
+src/pages/GiftDetailPage.tsx(129,22): error TS2552: Cannot find name 'ExternalLink'. Did you mean 'External'?

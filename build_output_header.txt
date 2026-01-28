@@ -1,0 +1,5 @@
+﻿
+> wishu@0.1.0 build
+> tsc && vite build
+
+src/context/HeaderContext.tsx(1,8): error TS6133: 'React' is declared but its value is never read.
