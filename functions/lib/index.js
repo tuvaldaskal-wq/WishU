@@ -1,8 +1,7 @@
 "use strict";
-Object.defineProperty(exports, "__esModule", { value: true });
 
-const { onRequest } = require("firebase-functions/v2/https");
+const functions = require("firebase-functions");
 
-exports.helloWorld = onRequest((req, res) => {
-    res.send("Hello from Firebase!");
+exports.helloWorld = functions.https.onRequest((req, res) => {
+    res.send("Hello from Firebase V1!");
 });
