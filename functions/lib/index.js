@@ -228,7 +228,7 @@ function extractPrice(html) {
  * V2 Function: Scrape Product Details
  * Uses onCall from firebase-functions/v2/https
  */
-const scrapeProductDetails = (0, https_1.onCall)(async (request) => {
+exports.scrapeProductDetails = (0, https_1.onCall)(async (request) => {
     getAdmin(); // Ensure initialization
     // In V2, data is accessed via request.data
     const data = request.data;
@@ -297,23 +297,21 @@ const scrapeProductDetails = (0, https_1.onCall)(async (request) => {
         return { title: "", description: "", image: "", error: "Scraping failed", errorCode: "SCRAPE_FAILED" };
     }
 });
-exports.scrapeProductDetails = scrapeProductDetails;
 /**
  * V2 Function: Health Check Ping
  * Uses onRequest from firebase-functions/v2/https
  */
-const pingV2 = (0, https_1.onRequest)((req, res) => {
+exports.pingV2 = (0, https_1.onRequest)((req, res) => {
     getAdmin(); // Ensure initialization
     console.log("Ping triggered!");
     res.send("Pong v2 Europe!");
 });
-exports.pingV2 = pingV2;
 /**
  * V2 Function: Send Push Notifications
  * Triggered by creation of documents in 'notifications' collection.
  * Uses onDocumentCreated from firebase-functions/v2/firestore
  */
-const sendPushNotificationV2 = (0, firestore_1.onDocumentCreated)("notifications/{notificationId}", async (event) => {
+exports.sendPushNotificationV2 = (0, firestore_1.onDocumentCreated)("notifications/{notificationId}", async (event) => {
     getAdmin(); // Ensure initialization
     const snapshot = event.data;
     if (!snapshot) {
@@ -389,5 +387,4 @@ const sendPushNotificationV2 = (0, firestore_1.onDocumentCreated)("notifications
     }
     console.log(`[SUMMARY] Finished sending. Success: ${successCount}, Failed: ${failureCount}`);
 });
-exports.sendPushNotificationV2 = sendPushNotificationV2;
 //# sourceMappingURL=index.js.map

@@ -257,7 +257,7 @@ function extractPrice(html: string): { price?: string, currency?: string, source
  * V2 Function: Scrape Product Details
  * Uses onCall from firebase-functions/v2/https
  */
-const scrapeProductDetails = onCall(async (request): Promise<ScrapedResult> => {
+export const scrapeProductDetails = onCall(async (request): Promise<ScrapedResult> => {
     getAdmin(); // Ensure initialization
     // In V2, data is accessed via request.data
     const data = request.data;
@@ -340,7 +340,7 @@ const scrapeProductDetails = onCall(async (request): Promise<ScrapedResult> => {
  * V2 Function: Health Check Ping
  * Uses onRequest from firebase-functions/v2/https
  */
-const pingV2 = onRequest((req, res) => {
+export const pingV2 = onRequest((req, res) => {
     getAdmin(); // Ensure initialization
     console.log("Ping triggered!");
     res.send("Pong v2 Europe!");
@@ -351,7 +351,7 @@ const pingV2 = onRequest((req, res) => {
  * Triggered by creation of documents in 'notifications' collection.
  * Uses onDocumentCreated from firebase-functions/v2/firestore
  */
-const sendPushNotificationV2 = onDocumentCreated(
+export const sendPushNotificationV2 = onDocumentCreated(
     "notifications/{notificationId}",
     async (event) => {
         getAdmin(); // Ensure initialization
@@ -441,12 +441,3 @@ const sendPushNotificationV2 = onDocumentCreated(
     }
 );
 
-// ============================================================================
-// EXPORTS
-// ============================================================================
-
-export {
-    scrapeProductDetails,
-    pingV2,
-    sendPushNotificationV2
-};
