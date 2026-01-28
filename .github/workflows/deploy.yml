@@ -26,9 +26,9 @@ jobs:
         working-directory: ./functions
         run: npm ci
 
-      - name: Build Functions
-        working-directory: ./functions
-        run: npm run build
+      # - name: Build Functions
+      #   working-directory: ./functions
+      #   run: npm run build
 
       - name: List built files (debug)
         run: |
