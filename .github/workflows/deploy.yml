@@ -19,6 +19,11 @@ jobs:
       - name: Install Dependencies
         run: cd functions && npm install
 
+      # 👇 THIS IS THE MISSING MAGIC STEP 👇
+      - name: Build Functions
+        run: cd functions && npm run build
+      # 👆 ---------------------------- 👆
+
       - name: Deploy to Firebase
         uses: w9jds/firebase-action@master
         with:
