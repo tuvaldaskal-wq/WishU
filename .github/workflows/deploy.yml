@@ -16,17 +16,28 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Install Dependencies
-        run: cd functions && npm install
+      - name: Setup credentials
+        run: echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT_WISHU_C16D5 }}' > ${{ github.workspace }}/gcp-key.json
 
-      # 👇 THIS IS THE MISSING MAGIC STEP 👇
+      - name: Install Firebase CLI
+        run: npm install -g firebase-tools
+
+      - name: Install Dependencies
+        working-directory: ./functions
+        run: npm ci
+
       - name: Build Functions
-        run: cd functions && npm run build
-      # 👆 ---------------------------- 👆
+        working-directory: ./functions
+        run: npm run build
+
+      - name: List built files (debug)
+        run: |
+          echo "=== Functions lib directory ==="
+          ls -la functions/lib/
+          echo "=== First 20 lines of index.js ==="
+          head -20 functions/lib/index.js
 
       - name: Deploy to Firebase
-        uses: w9jds/firebase-action@master
-        with:
-          args: deploy --only functions
+        run: firebase deploy --only functions --debug
         env:
-          GCP_SA_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_WISHU_C16D5 }}
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/gcp-key.json
