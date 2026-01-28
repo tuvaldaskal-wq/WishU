@@ -2,6 +2,8 @@ import * as functions from "firebase-functions";
 import * as admin from "firebase-admin";
 import axios from "axios";
 
+console.log("MODULE_LOADED: functions/src/index.ts is executing...");
+
 // ============================================================================
 // CONFIGURATION & INITIALIZATION
 // ============================================================================
@@ -358,3 +360,13 @@ export const sendPushNotificationV2 = functions
 
         console.log(`[SUMMARY] Finished sending. Success: ${successCount}, Failed: ${failureCount}`);
     });
+
+/**
+ * Simple Test Function for Discovery
+ */
+export const testDiscovery = functions
+    .region("us-central1")
+    .https.onRequest((req, res) => {
+        res.send("Discovery Works!");
+    });
+
