@@ -177,18 +177,194 @@ function normalizePrice(price: string, currency: string | null): string {
 }
 
 // ============================================================================
+// TIERED SCRAPING HELPERS
+// ============================================================================
+
+// Domains that require ScrapingBee (heavy anti-bot protection)
+const PREMIUM_REQUIRED_DOMAINS = [
+    'zara.com', 'adidas.co.il', 'adidas.com', 'hm.com',
+    'shein.com', 'shein.co.il', 'asos.com', 'nike.com'
+];
+
+function requiresPremiumScraper(url: string): boolean {
+    const lowerUrl = url.toLowerCase();
+    return PREMIUM_REQUIRED_DOMAINS.some(domain => lowerUrl.includes(domain));
+}
+
+// Tier 1: Direct fetch with browser-like headers
+async function tier1DirectFetch(url: string): Promise<ScrapedResult | null> {
+    console.log("[Tier 1] Attempting direct fetch for:", url);
+    try {
+        const response = await axios.get(url, {
+            timeout: 10000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5,he;q=0.3',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            },
+            maxRedirects: 5,
+        });
+
+        const html = response.data;
+        if (!html || typeof html !== 'string' || html.length < 500) {
+            console.log("[Tier 1] Response too short or not HTML");
+            return null;
+        }
+
+        if (isBlockPage(html)) {
+            console.log("[Tier 1] Blocked by WAF");
+            return null;
+        }
+
+        const title = extractTitle(html);
+        const image = extractImage(html);
+
+        // Need at least title or image to consider this successful
+        if (!title && !image) {
+            console.log("[Tier 1] No useful data extracted");
+            return null;
+        }
+
+        const description = extractDescription(html);
+        const priceData = extractPrice(html);
+
+        console.log("[Tier 1] Success! Title:", title?.substring(0, 50));
+        return {
+            title,
+            description,
+            image,
+            price: normalizePrice(priceData.price || "", priceData.currency),
+            currency: priceData.currency || undefined,
+            priceSource: priceData.source,
+            _debug: { tier: 1, htmlLength: html.length }
+        };
+    } catch (error) {
+        console.log("[Tier 1] Failed:", axios.isAxiosError(error) ? error.message : "Unknown error");
+        return null;
+    }
+}
+
+// Tier 2: Microlink API (free tier: 50 req/day)
+async function tier2Microlink(url: string): Promise<ScrapedResult | null> {
+    console.log("[Tier 2] Attempting Microlink for:", url);
+    try {
+        const response = await axios.get('https://api.microlink.io', {
+            params: { url, palette: false, audio: false, video: false },
+            timeout: 15000,
+        });
+
+        const data = response.data?.data;
+        if (!data) {
+            console.log("[Tier 2] No data in response");
+            return null;
+        }
+
+        const title = data.title || "";
+        const description = data.description || "";
+        const image = data.image?.url || "";
+
+        if (!title && !image) {
+            console.log("[Tier 2] No useful data extracted");
+            return null;
+        }
+
+        console.log("[Tier 2] Success! Title:", title?.substring(0, 50));
+        return {
+            title,
+            description,
+            image,
+            price: "", // Microlink doesn't extract prices
+            priceSource: "none",
+            _debug: { tier: 2 }
+        };
+    } catch (error) {
+        console.log("[Tier 2] Failed:", axios.isAxiosError(error) ? error.message : "Unknown error");
+        return null;
+    }
+}
+
+// Tier 3: ScrapingBee (premium, uses credits)
+async function tier3ScrapingBee(url: string, apiKey: string): Promise<ScrapedResult | null> {
+    console.log("[Tier 3] Attempting ScrapingBee for:", url);
+
+    const params: any = {
+        api_key: apiKey,
+        url: url,
+        render_js: "true",
+        premium_proxy: "true",
+        stealth_proxy: "true",
+        country_code: "il",
+        wait: "5000",
+        wait_browser: "networkidle0",
+        window_width: "1920",
+        window_height: "1080",
+        device: "desktop",
+    };
+
+    const selector = getWaitForSelector(url);
+    if (selector) params.wait_for = selector;
+
+    try {
+        const response = await axios.get(SCRAPINGBEE_API_URL, {
+            params,
+            timeout: 55000,
+        });
+
+        const html = response.data;
+        if (!html || html.length < 500) {
+            console.log("[Tier 3] Response too short");
+            return null;
+        }
+
+        if (isBlockPage(html)) {
+            console.log("[Tier 3] Blocked by WAF");
+            return null;
+        }
+
+        const title = extractTitle(html);
+        const description = extractDescription(html);
+        const image = extractImage(html);
+        const priceData = extractPrice(html);
+
+        console.log("[Tier 3] Success! Title:", title?.substring(0, 50));
+        return {
+            title,
+            description,
+            image,
+            price: normalizePrice(priceData.price || "", priceData.currency),
+            currency: priceData.currency || undefined,
+            priceSource: priceData.source,
+            _debug: { tier: 3, htmlLength: html.length }
+        };
+    } catch (error) {
+        console.error("[Tier 3] Failed:", error);
+        if (axios.isAxiosError(error)) {
+            console.error("[Tier 3] Axios details:", {
+                status: error.response?.status,
+                message: error.message,
+                data: typeof error.response?.data === 'string'
+                    ? error.response.data.substring(0, 200)
+                    : error.response?.data
+            });
+        }
+        return null;
+    }
+}
+
+// ============================================================================
 // FUNCTIONS
 // ============================================================================
 
-/**
- * V1 Function: Scrape Product Details
- */
-console.log("MODULE_LOADED: functions/src/index.ts is executing... VERSION 2 (CORS FIXED)");
-
-// ... (init code)
+console.log("MODULE_LOADED: functions/src/index.ts VERSION 3 (TIERED SCRAPER)");
 
 /**
- * V1 Function: Scrape Product Details
+ * V1 Function: Scrape Product Details (Tiered)
+ * Tier 1: Direct fetch + meta extraction (free)
+ * Tier 2: Microlink API (free tier)
+ * Tier 3: ScrapingBee (premium, uses credits)
  */
 export const scrapeProductDetails = functions
     .region(REGION)
@@ -196,7 +372,7 @@ export const scrapeProductDetails = functions
     .https.onRequest(async (req, res) => {
         // STRICT CORS HANDLING - MUST BE FIRST
         res.set('Access-Control-Allow-Origin', '*');
-        res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); // Added GET for browser testing if needed
+        res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
         res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, firebase-instance-id-token');
 
         if (req.method === 'OPTIONS') {
@@ -211,7 +387,6 @@ export const scrapeProductDetails = functions
 
         getAdmin(); // Ensure initialization
 
-        // Handle both JSON body (standard) and data property (callable style compatibility)
         const body = req.body;
         const url = (body.data && body.data.url) ? body.data.url : body.url;
 
@@ -220,93 +395,47 @@ export const scrapeProductDetails = functions
             return;
         }
 
-        const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
-        if (!apiKey) {
-            res.status(500).send({ title: "", description: "", image: "", error: "Config missing" });
-            return;
-        }
-
         const cleanedUrl = cleanUrl(url);
         console.log(`Processing URL: ${cleanedUrl}`);
 
-        const params: any = {
-            api_key: apiKey,
-            url: cleanedUrl,
-            render_js: "true",
-            premium_proxy: "true",
-            stealth_proxy: "true",
-            country_code: "il",
-            wait: "5000",
-            wait_browser: "networkidle0",
-            window_width: "1920",
-            window_height: "1080",
-            device: "desktop",
-        };
+        let result: ScrapedResult | null = null;
 
-        const selector = getWaitForSelector(cleanedUrl);
-        if (selector) params.wait_for = selector;
+        // Check if this domain requires premium scraper
+        const needsPremium = requiresPremiumScraper(cleanedUrl);
 
-        try {
-            console.log("Calling ScrapingBee via Axios...");
-            const response = await axios.get(SCRAPINGBEE_API_URL, {
-                params: params,
-                timeout: 55000,
-            });
+        if (needsPremium) {
+            console.log("Domain requires premium scraper, skipping free tiers");
+        } else {
+            // Tier 1: Try direct fetch first (free)
+            result = await tier1DirectFetch(cleanedUrl);
 
-            const html = response.data;
-
-            if (!html || html.length < 500) {
-                console.warn("ScrapingBee returned empty/short content");
-                res.status(200).send({ title: "", description: "", image: "", error: "Empty content", errorCode: "SCRAPE_FAILED" });
-                return;
+            // Tier 2: Try Microlink if Tier 1 failed (free)
+            if (!result) {
+                result = await tier2Microlink(cleanedUrl);
             }
+        }
 
-            if (isBlockPage(html)) {
-                console.warn("BLOCKED by WAF");
-                res.status(200).send({ title: "", description: "", image: "", error: "Blocked by WAF", errorCode: "SCRAPE_FAILED_MANUAL_REQUIRED" });
-                return;
+        // Tier 3: Fall back to ScrapingBee if needed
+        if (!result) {
+            const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
+            if (apiKey) {
+                result = await tier3ScrapingBee(cleanedUrl, apiKey);
+            } else {
+                console.warn("No ScrapingBee API key configured, skipping Tier 3");
             }
+        }
 
-            console.log("HTML received, length:", html.length);
-
-            const title = extractTitle(html);
-            const description = extractDescription(html);
-            const image = extractImage(html);
-            const priceData = extractPrice(html);
-
-            const result: ScrapedResult = {
-                title,
-                description,
-                image,
-                price: normalizePrice(priceData.price || "", priceData.currency),
-                currency: priceData.currency || undefined,
-                priceSource: priceData.source,
-                _debug: {
-                    htmlLength: html.length,
-                    htmlSnippet: html.substring(0, 500),
-                }
-            };
-
+        // Return result or error
+        if (result && (result.title || result.image)) {
             res.status(200).send(result);
-
-        } catch (error) {
-            console.error("ScrapingBee call failed:", error);
-            if (axios.isAxiosError(error)) {
-                console.error("Axios error details:", {
-                    code: error.code,
-                    message: error.message,
-                    status: error.response?.status,
-                    statusText: error.response?.statusText,
-                    responseData: typeof error.response?.data === 'string'
-                        ? error.response.data.substring(0, 500)
-                        : error.response?.data,
-                });
-                if (error.code === 'ECONNABORTED' || error.response?.status === 408) {
-                    res.status(200).send({ title: "", description: "", image: "", error: "Scraping timed out", errorCode: "SCRAPE_FAILED" });
-                    return;
-                }
-            }
-            res.status(200).send({ title: "", description: "", image: "", error: "Scraping failed", errorCode: "SCRAPE_FAILED" });
+        } else {
+            res.status(200).send({
+                title: "",
+                description: "",
+                image: "",
+                error: "Scraping failed - all tiers exhausted",
+                errorCode: "SCRAPE_FAILED"
+            });
         }
     });
 
