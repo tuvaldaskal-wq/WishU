@@ -291,9 +291,20 @@ export const scrapeProductDetails = functions
 
         } catch (error) {
             console.error("ScrapingBee call failed:", error);
-            if (axios.isAxiosError(error) && (error.code === 'ECONNABORTED' || error.response?.status === 408)) {
-                res.status(200).send({ title: "", description: "", image: "", error: "Scraping timed out", errorCode: "SCRAPE_FAILED" });
-                return;
+            if (axios.isAxiosError(error)) {
+                console.error("Axios error details:", {
+                    code: error.code,
+                    message: error.message,
+                    status: error.response?.status,
+                    statusText: error.response?.statusText,
+                    responseData: typeof error.response?.data === 'string'
+                        ? error.response.data.substring(0, 500)
+                        : error.response?.data,
+                });
+                if (error.code === 'ECONNABORTED' || error.response?.status === 408) {
+                    res.status(200).send({ title: "", description: "", image: "", error: "Scraping timed out", errorCode: "SCRAPE_FAILED" });
+                    return;
+                }
             }
             res.status(200).send({ title: "", description: "", image: "", error: "Scraping failed", errorCode: "SCRAPE_FAILED" });
         }
