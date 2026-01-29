@@ -83,3 +83,9 @@ jobs:
           --allow-unauthenticated \
           --set-env-vars SCRAPINGBEE_API_KEY=${SCRAPINGBEE_API_KEY}
 
+    - name: Deploy Hosting
+      working-directory: .
+      run: |
+        npm run build
+        npx firebase-tools deploy --only hosting --token "${{ secrets.FIREBASE_TOKEN }}"
+
