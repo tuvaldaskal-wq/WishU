@@ -65,5 +65,6 @@ jobs:
           --region=europe-west1 \
           --source=. \
           --entry-point=sendPushNotificationV2 \
-          --trigger-event=providers/cloud.firestore/eventTypes/document.create \
-          --trigger-resource="projects/wishu-c16d5/databases/(default)/documents/notifications/{notificationId}"
+          --trigger-event-filters="type=google.cloud.firestore.document.v1.created" \
+          --trigger-event-filters="database=(default)" \
+          --trigger-event-filters="match-document=notifications/{notificationId}"
