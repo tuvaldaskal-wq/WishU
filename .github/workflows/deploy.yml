@@ -66,7 +66,8 @@ jobs:
           --source=. \
           --entry-point=sendPushNotificationV2 \
           --trigger-event=providers/cloud.firestore/eventTypes/document.create \
-          --trigger-resource="projects/wishu-c16d5/databases/(default)/documents/notifications/{notificationId}"
+          --trigger-resource="projects/wishu-c16d5/databases/(default)/documents/notifications/{notificationId}" \
+          --set-env-vars GCLOUD_PROJECT=wishu-c16d5
 
     - name: Deploy scrapeProductDetails (Gen 1)
       working-directory: ./functions
