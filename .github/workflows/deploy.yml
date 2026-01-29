@@ -67,4 +67,4 @@ jobs:
           --entry-point=sendPushNotificationV2 \
           --trigger-event-filters="type=google.cloud.firestore.document.v1.created" \
           --trigger-event-filters="database=(default)" \
-          --trigger-event-filters="match-document=notifications/{notificationId}"
+          --trigger-event-filters="document=notifications/{notificationId}"
