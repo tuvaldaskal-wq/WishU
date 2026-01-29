@@ -13,7 +13,10 @@ let adminApp: admin.app.App | undefined;
 
 function getAdmin(): admin.app.App {
     if (!adminApp) {
-        adminApp = admin.initializeApp();
+        adminApp = admin.initializeApp({
+            projectId: "wishu-c16d5",
+            credential: admin.credential.applicationDefault()
+        });
     }
     return adminApp;
 }
@@ -183,14 +186,37 @@ function normalizePrice(price: string, currency: string | null): string {
 export const scrapeProductDetails = functions
     .region(REGION)
     .runWith(runtimeOpts)
-    .https.onCall(async (data, context): Promise<ScrapedResult> => {
-        getAdmin(); // Ensure initialization
-        const url = data.url as string;
+    .https.onRequest(async (req, res) => {
+        // Enable CORS
+        res.set('Access-Control-Allow-Origin', '*');
+        if (req.method === 'OPTIONS') {
+            res.set('Access-Control-Allow-Methods', 'POST');
+            res.set('Access-Control-Allow-Headers', 'Content-Type');
+            res.status(204).send('');
+            return;
+        }
 
-        if (!url) return { title: "", description: "", image: "", error: "No URL" };
+        if (req.method !== 'POST') {
+            res.status(405).send('Method Not Allowed');
+            return;
+        }
+
+        getAdmin(); // Ensure initialization
+
+        // Handle both JSON body (standard) and data property (callable style compatibility)
+        const body = req.body;
+        const url = (body.data && body.data.url) ? body.data.url : body.url;
+
+        if (!url) {
+            res.status(400).send({ title: "", description: "", image: "", error: "No URL" });
+            return;
+        }
 
         const apiKey = functions.config().scrapingbee?.api_key;
-        if (!apiKey) return { title: "", description: "", image: "", error: "Config missing" };
+        if (!apiKey) {
+            res.status(500).send({ title: "", description: "", image: "", error: "Config missing" });
+            return;
+        }
 
         const cleanedUrl = cleanUrl(url);
         console.log(`Processing URL: ${cleanedUrl}`);
@@ -223,12 +249,14 @@ export const scrapeProductDetails = functions
 
             if (!html || html.length < 500) {
                 console.warn("ScrapingBee returned empty/short content");
-                return { title: "", description: "", image: "", error: "Empty content", errorCode: "SCRAPE_FAILED" };
+                res.status(200).send({ title: "", description: "", image: "", error: "Empty content", errorCode: "SCRAPE_FAILED" });
+                return;
             }
 
             if (isBlockPage(html)) {
                 console.warn("BLOCKED by WAF");
-                return { title: "", description: "", image: "", error: "Blocked by WAF", errorCode: "SCRAPE_FAILED_MANUAL_REQUIRED" };
+                res.status(200).send({ title: "", description: "", image: "", error: "Blocked by WAF", errorCode: "SCRAPE_FAILED_MANUAL_REQUIRED" });
+                return;
             }
 
             console.log("HTML received, length:", html.length);
@@ -238,7 +266,7 @@ export const scrapeProductDetails = functions
             const image = extractImage(html);
             const priceData = extractPrice(html);
 
-            return {
+            const result: ScrapedResult = {
                 title,
                 description,
                 image,
@@ -251,12 +279,15 @@ export const scrapeProductDetails = functions
                 }
             };
 
+            res.status(200).send(result);
+
         } catch (error) {
             console.error("ScrapingBee call failed:", error);
             if (axios.isAxiosError(error) && (error.code === 'ECONNABORTED' || error.response?.status === 408)) {
-                return { title: "", description: "", image: "", error: "Scraping timed out", errorCode: "SCRAPE_FAILED" };
+                res.status(200).send({ title: "", description: "", image: "", error: "Scraping timed out", errorCode: "SCRAPE_FAILED" });
+                return;
             }
-            return { title: "", description: "", image: "", error: "Scraping failed", errorCode: "SCRAPE_FAILED" };
+            res.status(200).send({ title: "", description: "", image: "", error: "Scraping failed", errorCode: "SCRAPE_FAILED" });
         }
     });
 
