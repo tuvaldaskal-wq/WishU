@@ -1,5 +1,4 @@
-import { httpsCallable } from 'firebase/functions';
-import { functions } from './firebase';
+
 
 export interface ScrapedData {
     title: string;

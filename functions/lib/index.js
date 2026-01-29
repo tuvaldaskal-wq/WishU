@@ -37,7 +37,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createWishlist = exports.testDiscovery = exports.sendPushNotificationV2 = exports.pingV2 = exports.scrapeProductDetails = void 0;
-const functions = __importStar(require("firebase-functions"));
+const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
 console.log("MODULE_LOADED: functions/src/index.ts is executing...");
@@ -48,7 +48,10 @@ console.log("MODULE_LOADED: functions/src/index.ts is executing...");
 let adminApp;
 function getAdmin() {
     if (!adminApp) {
-        adminApp = admin.initializeApp();
+        adminApp = admin.initializeApp({
+            projectId: "wishu-c16d5",
+            credential: admin.credential.applicationDefault()
+        });
     }
     return adminApp;
 }
@@ -193,17 +196,40 @@ function normalizePrice(price, currency) {
 /**
  * V1 Function: Scrape Product Details
  */
+console.log("MODULE_LOADED: functions/src/index.ts is executing... VERSION 2 (CORS FIXED)");
+// ... (init code)
+/**
+ * V1 Function: Scrape Product Details
+ */
 exports.scrapeProductDetails = functions
     .region(REGION)
     .runWith(runtimeOpts)
-    .https.onCall(async (data, context) => {
+    .https.onRequest(async (req, res) => {
+    // STRICT CORS HANDLING - MUST BE FIRST
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); // Added GET for browser testing if needed
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, firebase-instance-id-token');
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
     getAdmin(); // Ensure initialization
-    const url = data.url;
-    if (!url)
-        return { title: "", description: "", image: "", error: "No URL" };
-    const apiKey = functions.config().scrapingbee?.api_key;
-    if (!apiKey)
-        return { title: "", description: "", image: "", error: "Config missing" };
+    // Handle both JSON body (standard) and data property (callable style compatibility)
+    const body = req.body;
+    const url = (body.data && body.data.url) ? body.data.url : body.url;
+    if (!url) {
+        res.status(400).send({ title: "", description: "", image: "", error: "No URL" });
+        return;
+    }
+    const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
+    if (!apiKey) {
+        res.status(500).send({ title: "", description: "", image: "", error: "Config missing" });
+        return;
+    }
     const cleanedUrl = cleanUrl(url);
     console.log(`Processing URL: ${cleanedUrl}`);
     const params = {
@@ -231,18 +257,20 @@ exports.scrapeProductDetails = functions
         const html = response.data;
         if (!html || html.length < 500) {
             console.warn("ScrapingBee returned empty/short content");
-            return { title: "", description: "", image: "", error: "Empty content", errorCode: "SCRAPE_FAILED" };
+            res.status(200).send({ title: "", description: "", image: "", error: "Empty content", errorCode: "SCRAPE_FAILED" });
+            return;
         }
         if (isBlockPage(html)) {
             console.warn("BLOCKED by WAF");
-            return { title: "", description: "", image: "", error: "Blocked by WAF", errorCode: "SCRAPE_FAILED_MANUAL_REQUIRED" };
+            res.status(200).send({ title: "", description: "", image: "", error: "Blocked by WAF", errorCode: "SCRAPE_FAILED_MANUAL_REQUIRED" });
+            return;
         }
         console.log("HTML received, length:", html.length);
         const title = extractTitle(html);
         const description = extractDescription(html);
         const image = extractImage(html);
         const priceData = extractPrice(html);
-        return {
+        const result = {
             title,
             description,
             image,
@@ -254,13 +282,15 @@ exports.scrapeProductDetails = functions
                 htmlSnippet: html.substring(0, 500),
             }
         };
+        res.status(200).send(result);
     }
     catch (error) {
         console.error("ScrapingBee call failed:", error);
         if (axios_1.default.isAxiosError(error) && (error.code === 'ECONNABORTED' || error.response?.status === 408)) {
-            return { title: "", description: "", image: "", error: "Scraping timed out", errorCode: "SCRAPE_FAILED" };
+            res.status(200).send({ title: "", description: "", image: "", error: "Scraping timed out", errorCode: "SCRAPE_FAILED" });
+            return;
         }
-        return { title: "", description: "", image: "", error: "Scraping failed", errorCode: "SCRAPE_FAILED" };
+        res.status(200).send({ title: "", description: "", image: "", error: "Scraping failed", errorCode: "SCRAPE_FAILED" });
     }
 });
 /**

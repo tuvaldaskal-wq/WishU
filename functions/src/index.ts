@@ -183,15 +183,23 @@ function normalizePrice(price: string, currency: string | null): string {
 /**
  * V1 Function: Scrape Product Details
  */
+console.log("MODULE_LOADED: functions/src/index.ts is executing... VERSION 2 (CORS FIXED)");
+
+// ... (init code)
+
+/**
+ * V1 Function: Scrape Product Details
+ */
 export const scrapeProductDetails = functions
     .region(REGION)
     .runWith(runtimeOpts)
     .https.onRequest(async (req, res) => {
-        // Enable CORS
+        // STRICT CORS HANDLING - MUST BE FIRST
         res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); // Added GET for browser testing if needed
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, firebase-instance-id-token');
+
         if (req.method === 'OPTIONS') {
-            res.set('Access-Control-Allow-Methods', 'POST');
-            res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, firebase-instance-id-token');
             res.status(204).send('');
             return;
         }

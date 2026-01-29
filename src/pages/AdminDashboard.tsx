@@ -16,10 +16,12 @@ interface ActivityItem {
 }
 
 import { useNotifications } from '../context/NotificationContext';
+import { useAuth } from '../context/AuthContext';
 
 const AdminDashboard = () => {
     const navigate = useNavigate();
     const { requestPermission } = useNotifications();
+    const { user } = useAuth();
     const [stats, setStats] = useState({
         users: 0,
         wishes: 0,
@@ -184,17 +186,20 @@ const AdminDashboard = () => {
                     </button>
                     <button
                         onClick={async () => {
+                            if (!user) {
+                                alert('You must be logged in to send a test notification.');
+                                return;
+                            }
                             try {
                                 const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
-                                // Hardcoded ID for testing based on user request
                                 await addDoc(collection(db, 'notifications'), {
-                                    userId: 'SnlRjWGr53crY65mNXKIc8tWoFE3',
+                                    userId: user.uid,
                                     title: 'Test from Dashboard v2',
-                                    message: 'This is a valid test!',
+                                    message: `This is a valid test! (User: ${user.email})`,
                                     type: 'test',
                                     createdAt: serverTimestamp()
                                 });
-                                alert('Test notification sent!');
+                                alert('Test notification sent to your device!');
                             } catch (e) {
                                 alert('Error sending test: ' + e);
                                 console.error(e);
