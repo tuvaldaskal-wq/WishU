@@ -84,6 +84,18 @@ jobs:
           --allow-unauthenticated \
           --set-env-vars SCRAPINGBEE_API_KEY=${SCRAPINGBEE_API_KEY}
 
+    - name: Deploy searchUsers (Gen 1)
+      working-directory: ./functions
+      run: |
+        gcloud functions deploy searchUsers \
+          --no-gen2 \
+          --runtime=nodejs20 \
+          --region=europe-west1 \
+          --source=. \
+          --entry-point=searchUsers \
+          --trigger-http \
+          --allow-unauthenticated
+
     - name: Deploy Hosting
       working-directory: .
       run: |
