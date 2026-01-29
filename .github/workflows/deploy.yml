@@ -56,15 +56,15 @@ jobs:
           --trigger-http \
           --allow-unauthenticated
 
-    - name: Deploy sendPushNotificationV2
+    - name: Deploy sendPushNotificationV2 (Gen 1)
       working-directory: ./functions
       run: |
         gcloud functions deploy sendPushNotificationV2 \
-          --gen2 \
+          --no-gen2 \
           --runtime=nodejs20 \
           --region=europe-west1 \
           --source=. \
           --entry-point=sendPushNotificationV2 \
-          --trigger-event-filters="type=google.cloud.firestore.document.v1.created" \
-          --trigger-event-filters="database=(default)" \
-          --trigger-event-filters="document=notifications/{notificationId}"
+          --trigger-event=providers/cloud.firestore/eventTypes/document.create \
+          --trigger-resource="projects/wishu-c16d5/databases/(default)/documents/notifications/{notificationId}"
+
