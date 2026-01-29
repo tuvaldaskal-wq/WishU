@@ -370,3 +370,59 @@ export const testDiscovery = functions
         res.send("Discovery Works!");
     });
 
+
+/**
+ * V1 Function: Create Wishlist
+ * Creates a new wishlist document in Firestore.
+ */
+export const createWishlist = functions
+    .region("us-central1") // Explicitly set to us-central1 as requested
+    .runWith(runtimeOpts)
+    .https.onRequest(async (req, res) => {
+        // Enable CORS
+        res.set("Access-Control-Allow-Origin", "*");
+        if (req.method === "OPTIONS") {
+            res.set("Access-Control-Allow-Methods", "POST");
+            res.set("Access-Control-Allow-Headers", "Content-Type");
+            res.status(204).send("");
+            return;
+        }
+
+        if (req.method !== "POST") {
+            res.status(405).send("Method Not Allowed");
+            return;
+        }
+
+        try {
+            getAdmin(); // Ensure initialization
+            const { title, description, occassion, date } = req.body;
+
+            // Basic Validation
+            if (!title) {
+                res.status(400).send({ error: "Missing required field: title" });
+                return;
+            }
+
+            const wishlistData = {
+                title,
+                description: description || "",
+                occassion: occassion || null,
+                targetDate: date ? new Date(date) : null,
+                createdAt: admin.firestore.FieldValue.serverTimestamp(),
+                itemCount: 0
+            };
+
+            const docRef = await admin.firestore().collection("wishlists").add(wishlistData);
+
+            console.log(`Wishlist created with ID: ${docRef.id}`);
+
+            res.status(201).send({
+                id: docRef.id,
+                message: "Wishlist created successfully"
+            });
+
+        } catch (error) {
+            console.error("Error creating wishlist:", error);
+            res.status(500).send({ error: "Internal Server Error" });
+        }
+    });

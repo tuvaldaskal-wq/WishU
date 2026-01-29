@@ -1,15 +1,4 @@
 #!/bin/bash
-echo "Deploying createWishlist function..."
-gcloud functions deploy createWishlist \
-  --gen2 \
-  --runtime=nodejs20 \
-  --region=us-central1 \
-  --source=. \
-  --entry-point=createWishlist \
-  --trigger-http \
-  --allow-unauthenticated
-
-echo ""
 echo "Deploying sendPushNotificationV2 function..."
 gcloud functions deploy sendPushNotificationV2 \
   --gen2 \
@@ -19,4 +8,3 @@ gcloud functions deploy sendPushNotificationV2 \
   --entry-point=sendPushNotificationV2 \
   --trigger-event=providers/cloud.firestore/eventTypes/document.create \
   --trigger-resource="projects/wishu-c16d5/databases/(default)/documents/notifications/{notificationId}"
-

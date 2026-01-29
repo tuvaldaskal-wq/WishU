@@ -36,15 +36,22 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.sendPushNotificationV2 = exports.pingV2 = exports.scrapeProductDetails = void 0;
+exports.createWishlist = exports.testDiscovery = exports.sendPushNotificationV2 = exports.pingV2 = exports.scrapeProductDetails = void 0;
 const functions = __importStar(require("firebase-functions"));
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
+console.log("MODULE_LOADED: functions/src/index.ts is executing...");
 // ============================================================================
 // CONFIGURATION & INITIALIZATION
 // ============================================================================
-// Initialize Firebase Admin
-admin.initializeApp();
+// Initialize Firebase Admin lazily
+let adminApp;
+function getAdmin() {
+    if (!adminApp) {
+        adminApp = admin.initializeApp();
+    }
+    return adminApp;
+}
 // ScrapingBee API configuration
 const SCRAPINGBEE_API_URL = "https://app.scrapingbee.com/api/v1/";
 // Runtime options for functions
@@ -190,6 +197,7 @@ exports.scrapeProductDetails = functions
     .region(REGION)
     .runWith(runtimeOpts)
     .https.onCall(async (data, context) => {
+    getAdmin(); // Ensure initialization
     const url = data.url;
     if (!url)
         return { title: "", description: "", image: "", error: "No URL" };
@@ -262,6 +270,7 @@ exports.pingV2 = functions
     .region(REGION)
     .runWith(runtimeOpts)
     .https.onRequest((req, res) => {
+    getAdmin(); // Ensure initialization
     console.log("Ping triggered!");
     res.send("Pong v1 Europe!");
 });
@@ -274,6 +283,7 @@ exports.sendPushNotificationV2 = functions
     .runWith(runtimeOpts)
     .firestore.document("notifications/{notificationId}")
     .onCreate(async (snapshot, context) => {
+    getAdmin(); // Ensure initialization
     const notificationId = snapshot.id;
     console.log(`[START] sendPushNotificationV2 triggered for ID: ${notificationId}`);
     const notification = snapshot.data();
@@ -342,5 +352,61 @@ exports.sendPushNotificationV2 = functions
         }
     }
     console.log(`[SUMMARY] Finished sending. Success: ${successCount}, Failed: ${failureCount}`);
+});
+/**
+ * Simple Test Function for Discovery
+ */
+exports.testDiscovery = functions
+    .region("us-central1")
+    .https.onRequest((req, res) => {
+    res.send("Discovery Works!");
+});
+/**
+ * V1 Function: Create Wishlist
+ * Creates a new wishlist document in Firestore.
+ */
+exports.createWishlist = functions
+    .region("us-central1") // Explicitly set to us-central1 as requested
+    .runWith(runtimeOpts)
+    .https.onRequest(async (req, res) => {
+    // Enable CORS
+    res.set("Access-Control-Allow-Origin", "*");
+    if (req.method === "OPTIONS") {
+        res.set("Access-Control-Allow-Methods", "POST");
+        res.set("Access-Control-Allow-Headers", "Content-Type");
+        res.status(204).send("");
+        return;
+    }
+    if (req.method !== "POST") {
+        res.status(405).send("Method Not Allowed");
+        return;
+    }
+    try {
+        getAdmin(); // Ensure initialization
+        const { title, description, occassion, date } = req.body;
+        // Basic Validation
+        if (!title) {
+            res.status(400).send({ error: "Missing required field: title" });
+            return;
+        }
+        const wishlistData = {
+            title,
+            description: description || "",
+            occassion: occassion || null,
+            targetDate: date ? new Date(date) : null,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+            itemCount: 0
+        };
+        const docRef = await admin.firestore().collection("wishlists").add(wishlistData);
+        console.log(`Wishlist created with ID: ${docRef.id}`);
+        res.status(201).send({
+            id: docRef.id,
+            message: "Wishlist created successfully"
+        });
+    }
+    catch (error) {
+        console.error("Error creating wishlist:", error);
+        res.status(500).send({ error: "Internal Server Error" });
+    }
 });
 //# sourceMappingURL=index.js.map
