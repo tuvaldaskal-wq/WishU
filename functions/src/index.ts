@@ -358,7 +358,7 @@ async function tier3ScrapingBee(url: string, apiKey: string): Promise<ScrapedRes
 // FUNCTIONS
 // ============================================================================
 
-console.log("MODULE_LOADED: functions/src/index.ts VERSION 3 (TIERED SCRAPER)");
+console.log("MODULE_LOADED: functions/src/index.ts VERSION 4 (HYBRID SCRAPER)");
 
 /**
  * V1 Function: Scrape Product Details (Tiered)
@@ -400,28 +400,58 @@ export const scrapeProductDetails = functions
 
         let result: ScrapedResult | null = null;
 
-        // Check if this domain requires premium scraper
+        // Check if this domain requires premium scraper for everything
         const needsPremium = requiresPremiumScraper(cleanedUrl);
 
         if (needsPremium) {
-            console.log("Domain requires premium scraper, skipping free tiers");
-        } else {
-            // Tier 1: Try direct fetch first (free)
-            result = await tier1DirectFetch(cleanedUrl);
-
-            // Tier 2: Try Microlink if Tier 1 failed (free)
-            if (!result) {
-                result = await tier2Microlink(cleanedUrl);
-            }
-        }
-
-        // Tier 3: Fall back to ScrapingBee if needed
-        if (!result) {
+            console.log("Domain requires premium scraper, using ScrapingBee for everything");
             const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
             if (apiKey) {
                 result = await tier3ScrapingBee(cleanedUrl, apiKey);
-            } else {
-                console.warn("No ScrapingBee API key configured, skipping Tier 3");
+            }
+        } else {
+            // HYBRID APPROACH: Free scrapers for title/image, ScrapingBee for price only
+
+            // Step 1: Try Tier 1 (direct fetch) for title, image, and potentially price
+            result = await tier1DirectFetch(cleanedUrl);
+
+            // Step 2: If Tier 1 failed completely, try Tier 2 (Microlink)
+            if (!result) {
+                result = await tier2Microlink(cleanedUrl);
+            }
+
+            // Step 3: If we got title/image but NO price, try ScrapingBee for price only
+            if (result && (result.title || result.image) && !result.price) {
+                console.log("Got title/image from free tier, attempting ScrapingBee for price only...");
+                const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
+                if (apiKey) {
+                    const premiumResult = await tier3ScrapingBee(cleanedUrl, apiKey);
+                    if (premiumResult && premiumResult.price) {
+                        // Merge: keep free tier's title/image, use ScrapingBee's price
+                        result.price = premiumResult.price;
+                        result.currency = premiumResult.currency;
+                        result.priceSource = premiumResult.priceSource;
+                        result._debug = {
+                            ...result._debug,
+                            priceTier: 3,
+                            note: "Title/image from free tier, price from ScrapingBee"
+                        };
+                        console.log("Merged price from ScrapingBee:", result.price);
+                    } else {
+                        console.log("ScrapingBee also couldn't extract price");
+                    }
+                }
+            }
+
+            // Step 4: If we still have no result at all, try ScrapingBee as full fallback
+            if (!result) {
+                console.log("Free tiers failed completely, falling back to ScrapingBee");
+                const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
+                if (apiKey) {
+                    result = await tier3ScrapingBee(cleanedUrl, apiKey);
+                } else {
+                    console.warn("No ScrapingBee API key configured");
+                }
             }
         }
 
