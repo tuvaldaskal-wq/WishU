@@ -470,6 +470,82 @@ export const scrapeProductDetails = functions
     });
 
 /**
+ * V1 Function: Search Users
+ * Search all users by displayName or email (case-insensitive partial match)
+ * Used for finding users who are not already friends
+ */
+export const searchUsers = functions
+    .region(REGION)
+    .runWith(runtimeOpts)
+    .https.onRequest(async (req, res) => {
+        // CORS
+        res.set('Access-Control-Allow-Origin', '*');
+        res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+        res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+
+        if (req.method === 'OPTIONS') {
+            res.status(204).send('');
+            return;
+        }
+
+        if (req.method !== 'POST') {
+            res.status(405).send({ error: 'Method Not Allowed' });
+            return;
+        }
+
+        getAdmin();
+
+        const body = req.body;
+        const query = (body.data?.query || body.query || '').toLowerCase().trim();
+        const requesterId = body.data?.requesterId || body.requesterId;
+
+        if (!query || query.length < 2) {
+            res.status(400).send({ error: 'Query must be at least 2 characters', users: [] });
+            return;
+        }
+
+        console.log(`[searchUsers] Searching for: "${query}" by user: ${requesterId}`);
+
+        try {
+            // Get all users (in production, use proper indexing/Algolia)
+            const usersSnapshot = await admin.firestore().collection('users').get();
+
+            const matchingUsers: any[] = [];
+
+            usersSnapshot.forEach(doc => {
+                const userData = doc.data();
+                const uid = doc.id;
+
+                // Don't include the requester
+                if (uid === requesterId) return;
+
+                const displayName = (userData.displayName || '').toLowerCase();
+                const email = (userData.email || '').toLowerCase();
+
+                // Partial match on displayName or email
+                if (displayName.includes(query) || email.includes(query)) {
+                    matchingUsers.push({
+                        uid,
+                        displayName: userData.displayName || 'Unknown',
+                        email: userData.email || '',
+                        photoURL: userData.photoURL || null,
+                    });
+                }
+            });
+
+            // Limit to 10 results
+            const results = matchingUsers.slice(0, 10);
+
+            console.log(`[searchUsers] Found ${results.length} matches`);
+            res.status(200).send({ users: results });
+
+        } catch (error) {
+            console.error('[searchUsers] Error:', error);
+            res.status(500).send({ error: 'Search failed', users: [] });
+        }
+    });
+
+/**
  * V1 Function: Health Check Ping
  */
 export const pingV2 = functions

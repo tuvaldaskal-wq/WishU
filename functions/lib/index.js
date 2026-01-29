@@ -36,7 +36,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.createWishlist = exports.testDiscovery = exports.sendPushNotificationV2 = exports.pingV2 = exports.scrapeProductDetails = void 0;
+exports.createWishlist = exports.testDiscovery = exports.sendPushNotificationV2 = exports.pingV2 = exports.searchUsers = exports.scrapeProductDetails = void 0;
 const functions = __importStar(require("firebase-functions/v1"));
 const admin = __importStar(require("firebase-admin"));
 const axios_1 = __importDefault(require("axios"));
@@ -191,50 +191,108 @@ function normalizePrice(price, currency) {
     return `${num.toFixed(2)} ${currency || "₪"}`;
 }
 // ============================================================================
-// FUNCTIONS
+// TIERED SCRAPING HELPERS
 // ============================================================================
-/**
- * V1 Function: Scrape Product Details
- */
-console.log("MODULE_LOADED: functions/src/index.ts is executing... VERSION 2 (CORS FIXED)");
-// ... (init code)
-/**
- * V1 Function: Scrape Product Details
- */
-exports.scrapeProductDetails = functions
-    .region(REGION)
-    .runWith(runtimeOpts)
-    .https.onRequest(async (req, res) => {
-    // STRICT CORS HANDLING - MUST BE FIRST
-    res.set('Access-Control-Allow-Origin', '*');
-    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS'); // Added GET for browser testing if needed
-    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, firebase-instance-id-token');
-    if (req.method === 'OPTIONS') {
-        res.status(204).send('');
-        return;
+// Domains that require ScrapingBee (heavy anti-bot protection)
+const PREMIUM_REQUIRED_DOMAINS = [
+    'zara.com', 'adidas.co.il', 'adidas.com', 'hm.com',
+    'shein.com', 'shein.co.il', 'asos.com', 'nike.com'
+];
+function requiresPremiumScraper(url) {
+    const lowerUrl = url.toLowerCase();
+    return PREMIUM_REQUIRED_DOMAINS.some(domain => lowerUrl.includes(domain));
+}
+// Tier 1: Direct fetch with browser-like headers
+async function tier1DirectFetch(url) {
+    console.log("[Tier 1] Attempting direct fetch for:", url);
+    try {
+        const response = await axios_1.default.get(url, {
+            timeout: 10000,
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+                'Accept-Language': 'en-US,en;q=0.5,he;q=0.3',
+                'Accept-Encoding': 'gzip, deflate',
+                'Connection': 'keep-alive',
+                'Upgrade-Insecure-Requests': '1',
+            },
+            maxRedirects: 5,
+        });
+        const html = response.data;
+        if (!html || typeof html !== 'string' || html.length < 500) {
+            console.log("[Tier 1] Response too short or not HTML");
+            return null;
+        }
+        if (isBlockPage(html)) {
+            console.log("[Tier 1] Blocked by WAF");
+            return null;
+        }
+        const title = extractTitle(html);
+        const image = extractImage(html);
+        // Need at least title or image to consider this successful
+        if (!title && !image) {
+            console.log("[Tier 1] No useful data extracted");
+            return null;
+        }
+        const description = extractDescription(html);
+        const priceData = extractPrice(html);
+        console.log("[Tier 1] Success! Title:", title?.substring(0, 50));
+        return {
+            title,
+            description,
+            image,
+            price: normalizePrice(priceData.price || "", priceData.currency),
+            currency: priceData.currency || undefined,
+            priceSource: priceData.source,
+            _debug: { tier: 1, htmlLength: html.length }
+        };
     }
-    if (req.method !== 'POST') {
-        res.status(405).send('Method Not Allowed');
-        return;
+    catch (error) {
+        console.log("[Tier 1] Failed:", axios_1.default.isAxiosError(error) ? error.message : "Unknown error");
+        return null;
     }
-    getAdmin(); // Ensure initialization
-    // Handle both JSON body (standard) and data property (callable style compatibility)
-    const body = req.body;
-    const url = (body.data && body.data.url) ? body.data.url : body.url;
-    if (!url) {
-        res.status(400).send({ title: "", description: "", image: "", error: "No URL" });
-        return;
+}
+// Tier 2: Microlink API (free tier: 50 req/day)
+async function tier2Microlink(url) {
+    console.log("[Tier 2] Attempting Microlink for:", url);
+    try {
+        const response = await axios_1.default.get('https://api.microlink.io', {
+            params: { url, palette: false, audio: false, video: false },
+            timeout: 15000,
+        });
+        const data = response.data?.data;
+        if (!data) {
+            console.log("[Tier 2] No data in response");
+            return null;
+        }
+        const title = data.title || "";
+        const description = data.description || "";
+        const image = data.image?.url || "";
+        if (!title && !image) {
+            console.log("[Tier 2] No useful data extracted");
+            return null;
+        }
+        console.log("[Tier 2] Success! Title:", title?.substring(0, 50));
+        return {
+            title,
+            description,
+            image,
+            price: "", // Microlink doesn't extract prices
+            priceSource: "none",
+            _debug: { tier: 2 }
+        };
     }
-    const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
-    if (!apiKey) {
-        res.status(500).send({ title: "", description: "", image: "", error: "Config missing" });
-        return;
+    catch (error) {
+        console.log("[Tier 2] Failed:", axios_1.default.isAxiosError(error) ? error.message : "Unknown error");
+        return null;
     }
-    const cleanedUrl = cleanUrl(url);
-    console.log(`Processing URL: ${cleanedUrl}`);
+}
+// Tier 3: ScrapingBee (premium, uses credits)
+async function tier3ScrapingBee(url, apiKey) {
+    console.log("[Tier 3] Attempting ScrapingBee for:", url);
     const params = {
         api_key: apiKey,
-        url: cleanedUrl,
+        url: url,
         render_js: "true",
         premium_proxy: "true",
         stealth_proxy: "true",
@@ -245,52 +303,214 @@ exports.scrapeProductDetails = functions
         window_height: "1080",
         device: "desktop",
     };
-    const selector = getWaitForSelector(cleanedUrl);
+    const selector = getWaitForSelector(url);
     if (selector)
         params.wait_for = selector;
     try {
-        console.log("Calling ScrapingBee via Axios...");
         const response = await axios_1.default.get(SCRAPINGBEE_API_URL, {
-            params: params,
+            params,
             timeout: 55000,
         });
         const html = response.data;
         if (!html || html.length < 500) {
-            console.warn("ScrapingBee returned empty/short content");
-            res.status(200).send({ title: "", description: "", image: "", error: "Empty content", errorCode: "SCRAPE_FAILED" });
-            return;
+            console.log("[Tier 3] Response too short");
+            return null;
         }
         if (isBlockPage(html)) {
-            console.warn("BLOCKED by WAF");
-            res.status(200).send({ title: "", description: "", image: "", error: "Blocked by WAF", errorCode: "SCRAPE_FAILED_MANUAL_REQUIRED" });
-            return;
+            console.log("[Tier 3] Blocked by WAF");
+            return null;
         }
-        console.log("HTML received, length:", html.length);
         const title = extractTitle(html);
         const description = extractDescription(html);
         const image = extractImage(html);
         const priceData = extractPrice(html);
-        const result = {
+        console.log("[Tier 3] Success! Title:", title?.substring(0, 50));
+        return {
             title,
             description,
             image,
             price: normalizePrice(priceData.price || "", priceData.currency),
             currency: priceData.currency || undefined,
             priceSource: priceData.source,
-            _debug: {
-                htmlLength: html.length,
-                htmlSnippet: html.substring(0, 500),
-            }
+            _debug: { tier: 3, htmlLength: html.length }
         };
-        res.status(200).send(result);
     }
     catch (error) {
-        console.error("ScrapingBee call failed:", error);
-        if (axios_1.default.isAxiosError(error) && (error.code === 'ECONNABORTED' || error.response?.status === 408)) {
-            res.status(200).send({ title: "", description: "", image: "", error: "Scraping timed out", errorCode: "SCRAPE_FAILED" });
-            return;
+        console.error("[Tier 3] Failed:", error);
+        if (axios_1.default.isAxiosError(error)) {
+            console.error("[Tier 3] Axios details:", {
+                status: error.response?.status,
+                message: error.message,
+                data: typeof error.response?.data === 'string'
+                    ? error.response.data.substring(0, 200)
+                    : error.response?.data
+            });
         }
-        res.status(200).send({ title: "", description: "", image: "", error: "Scraping failed", errorCode: "SCRAPE_FAILED" });
+        return null;
+    }
+}
+// ============================================================================
+// FUNCTIONS
+// ============================================================================
+console.log("MODULE_LOADED: functions/src/index.ts VERSION 4 (HYBRID SCRAPER)");
+/**
+ * V1 Function: Scrape Product Details (Tiered)
+ * Tier 1: Direct fetch + meta extraction (free)
+ * Tier 2: Microlink API (free tier)
+ * Tier 3: ScrapingBee (premium, uses credits)
+ */
+exports.scrapeProductDetails = functions
+    .region(REGION)
+    .runWith(runtimeOpts)
+    .https.onRequest(async (req, res) => {
+    // STRICT CORS HANDLING - MUST BE FIRST
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization, firebase-instance-id-token');
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+    if (req.method !== 'POST') {
+        res.status(405).send('Method Not Allowed');
+        return;
+    }
+    getAdmin(); // Ensure initialization
+    const body = req.body;
+    const url = (body.data && body.data.url) ? body.data.url : body.url;
+    if (!url) {
+        res.status(400).send({ title: "", description: "", image: "", error: "No URL" });
+        return;
+    }
+    const cleanedUrl = cleanUrl(url);
+    console.log(`Processing URL: ${cleanedUrl}`);
+    let result = null;
+    // Check if this domain requires premium scraper for everything
+    const needsPremium = requiresPremiumScraper(cleanedUrl);
+    if (needsPremium) {
+        console.log("Domain requires premium scraper, using ScrapingBee for everything");
+        const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
+        if (apiKey) {
+            result = await tier3ScrapingBee(cleanedUrl, apiKey);
+        }
+    }
+    else {
+        // HYBRID APPROACH: Free scrapers for title/image, ScrapingBee for price only
+        // Step 1: Try Tier 1 (direct fetch) for title, image, and potentially price
+        result = await tier1DirectFetch(cleanedUrl);
+        // Step 2: If Tier 1 failed completely, try Tier 2 (Microlink)
+        if (!result) {
+            result = await tier2Microlink(cleanedUrl);
+        }
+        // Step 3: If we got title/image but NO price, try ScrapingBee for price only
+        if (result && (result.title || result.image) && !result.price) {
+            console.log("Got title/image from free tier, attempting ScrapingBee for price only...");
+            const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
+            if (apiKey) {
+                const premiumResult = await tier3ScrapingBee(cleanedUrl, apiKey);
+                if (premiumResult && premiumResult.price) {
+                    // Merge: keep free tier's title/image, use ScrapingBee's price
+                    result.price = premiumResult.price;
+                    result.currency = premiumResult.currency;
+                    result.priceSource = premiumResult.priceSource;
+                    result._debug = {
+                        ...result._debug,
+                        priceTier: 3,
+                        note: "Title/image from free tier, price from ScrapingBee"
+                    };
+                    console.log("Merged price from ScrapingBee:", result.price);
+                }
+                else {
+                    console.log("ScrapingBee also couldn't extract price");
+                }
+            }
+        }
+        // Step 4: If we still have no result at all, try ScrapingBee as full fallback
+        if (!result) {
+            console.log("Free tiers failed completely, falling back to ScrapingBee");
+            const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
+            if (apiKey) {
+                result = await tier3ScrapingBee(cleanedUrl, apiKey);
+            }
+            else {
+                console.warn("No ScrapingBee API key configured");
+            }
+        }
+    }
+    // Return result or error
+    if (result && (result.title || result.image)) {
+        res.status(200).send(result);
+    }
+    else {
+        res.status(200).send({
+            title: "",
+            description: "",
+            image: "",
+            error: "Scraping failed - all tiers exhausted",
+            errorCode: "SCRAPE_FAILED"
+        });
+    }
+});
+/**
+ * V1 Function: Search Users
+ * Search all users by displayName or email (case-insensitive partial match)
+ * Used for finding users who are not already friends
+ */
+exports.searchUsers = functions
+    .region(REGION)
+    .runWith(runtimeOpts)
+    .https.onRequest(async (req, res) => {
+    // CORS
+    res.set('Access-Control-Allow-Origin', '*');
+    res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.set('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') {
+        res.status(204).send('');
+        return;
+    }
+    if (req.method !== 'POST') {
+        res.status(405).send({ error: 'Method Not Allowed' });
+        return;
+    }
+    getAdmin();
+    const body = req.body;
+    const query = (body.data?.query || body.query || '').toLowerCase().trim();
+    const requesterId = body.data?.requesterId || body.requesterId;
+    if (!query || query.length < 2) {
+        res.status(400).send({ error: 'Query must be at least 2 characters', users: [] });
+        return;
+    }
+    console.log(`[searchUsers] Searching for: "${query}" by user: ${requesterId}`);
+    try {
+        // Get all users (in production, use proper indexing/Algolia)
+        const usersSnapshot = await admin.firestore().collection('users').get();
+        const matchingUsers = [];
+        usersSnapshot.forEach(doc => {
+            const userData = doc.data();
+            const uid = doc.id;
+            // Don't include the requester
+            if (uid === requesterId)
+                return;
+            const displayName = (userData.displayName || '').toLowerCase();
+            const email = (userData.email || '').toLowerCase();
+            // Partial match on displayName or email
+            if (displayName.includes(query) || email.includes(query)) {
+                matchingUsers.push({
+                    uid,
+                    displayName: userData.displayName || 'Unknown',
+                    email: userData.email || '',
+                    photoURL: userData.photoURL || null,
+                });
+            }
+        });
+        // Limit to 10 results
+        const results = matchingUsers.slice(0, 10);
+        console.log(`[searchUsers] Found ${results.length} matches`);
+        res.status(200).send({ users: results });
+    }
+    catch (error) {
+        console.error('[searchUsers] Error:', error);
+        res.status(500).send({ error: 'Search failed', users: [] });
     }
 });
 /**
