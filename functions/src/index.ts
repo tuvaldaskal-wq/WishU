@@ -212,7 +212,7 @@ export const scrapeProductDetails = functions
             return;
         }
 
-        const apiKey = functions.config().scrapingbee?.api_key;
+        const apiKey = functions.config().scrapingbee?.api_key || process.env.SCRAPINGBEE_API_KEY;
         if (!apiKey) {
             res.status(500).send({ title: "", description: "", image: "", error: "Config missing" });
             return;

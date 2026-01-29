@@ -68,3 +68,18 @@ jobs:
           --trigger-event=providers/cloud.firestore/eventTypes/document.create \
           --trigger-resource="projects/wishu-c16d5/databases/(default)/documents/notifications/{notificationId}"
 
+    - name: Deploy scrapeProductDetails (Gen 1)
+      working-directory: ./functions
+      env:
+        SCRAPINGBEE_API_KEY: ${{ secrets.SCRAPINGBEE_API_KEY }}
+      run: |
+        gcloud functions deploy scrapeProductDetails \
+          --no-gen2 \
+          --runtime=nodejs20 \
+          --region=europe-west1 \
+          --source=. \
+          --entry-point=scrapeProductDetails \
+          --trigger-http \
+          --allow-unauthenticated \
+          --set-env-vars SCRAPINGBEE_API_KEY=${SCRAPINGBEE_API_KEY}
+

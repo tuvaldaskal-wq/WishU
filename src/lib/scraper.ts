@@ -81,21 +81,30 @@ const fetchWithCloudFunction = async (url: string): Promise<CloudFunctionResult 
     console.log("Scraper: Calling Firebase Cloud Function for:", url);
 
     try {
-        const scrapeFunction = httpsCallable<{ url: string }, CloudFunctionResult>(
-            functions,
-            'scrapeProductDetails',
-            { timeout: 65000 } // 65 second timeout for 2-layer scraping (Sniper + Tank fallback)
-        );
+        // Direct HTTPS call instead of onCall to handle CORS better
+        const response = await fetch('https://europe-west1-wishu-c16d5.cloudfunctions.net/scrapeProductDetails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ url }) // Send as simple JSON body
+        });
 
-        const result = await scrapeFunction({ url });
-        console.log("Scraper: Cloud function returned:", result.data);
-
-        if (result.data.error) {
-            console.warn("Scraper: Cloud function error:", result.data.error);
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("Scraper: Cloud function failed with status", response.status, errorText);
             return null;
         }
 
-        return result.data;
+        const data = await response.json() as CloudFunctionResult;
+        console.log("Scraper: Cloud function returned:", data);
+
+        if (data.error) {
+            console.warn("Scraper: Cloud function error:", data.error);
+            return null;
+        }
+
+        return data;
     } catch (error) {
         console.error("Scraper: Cloud function failed:", error);
         return null;
