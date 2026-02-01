@@ -11,6 +11,23 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Rubik:ital,wght@0,300..900;1,300..900&display=swap"
     rel="stylesheet">
+  <script>
+    window.onerror = function (msg, url, line, col, error) {
+      try {
+        // Prevent infinite loops by checking a flag (with try-catch for private mode)
+        var hasReloaded = false;
+        try { hasReloaded = window.sessionStorage.getItem('wishu_crash_retry'); } catch (e) { }
+
+        if (!hasReloaded && performance.now() < 5000) {
+          try { window.sessionStorage.setItem('wishu_crash_retry', 'true'); } catch (e) { }
+          console.log("Crash detected. Reloading...");
+          window.location.reload();
+        }
+      } catch (e) {
+        // If everything fails, do nothing to avoid recursive crashes
+      }
+    };
+  </script>
 </head>
 
 <body>
