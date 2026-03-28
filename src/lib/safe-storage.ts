@@ -1,52 +1,75 @@
 
-// This file monkey-patches the global storage objects to prevent crashes in private mode (iOS)
-// or restricted environments where accessing localStorage/sessionStorage throws an error.
+// This file provides a wrapper around localStorage/sessionStorage to prevent crashes
+// in private mode (iOS) or restricted environments where accessing storage throws an error.
 
-try {
-    const isSupported = (type: 'localStorage' | 'sessionStorage') => {
+class SafeStorage {
+    private type: 'localStorage' | 'sessionStorage';
+    private memoryFallback: Record<string, string> = {};
+    private isBroken = false;
+
+    constructor(type: 'localStorage' | 'sessionStorage') {
+        this.type = type;
         try {
-            const storage = window[type];
-            const x = '__storage_test__';
-            storage.setItem(x, x);
-            storage.removeItem(x);
-            return true;
+            // Test if storage is effectively available
+            const testKey = '__storage_test__';
+            window[type].setItem(testKey, testKey);
+            window[type].removeItem(testKey);
         } catch (e) {
-            return false;
+            console.warn(`[SafeStorage] ${type} is not available (likely Private Mode). Using memory fallback.`);
+            this.isBroken = true;
         }
-    };
-
-    if (!isSupported('localStorage')) {
-        console.warn('localStorage not supported, using memory fallback');
-        const memoryStorage: Record<string, string> = {};
-        Object.defineProperty(window, 'localStorage', {
-            value: {
-                getItem: (key: string) => memoryStorage[key] || null,
-                setItem: (key: string, value: string) => { memoryStorage[key] = String(value); },
-                removeItem: (key: string) => { delete memoryStorage[key]; },
-                clear: () => { for (const k in memoryStorage) delete memoryStorage[k]; },
-                length: 0,
-                key: (index: number) => Object.keys(memoryStorage)[index] || null,
-            },
-            writable: true
-        });
     }
 
-    if (!isSupported('sessionStorage')) {
-        console.warn('sessionStorage not supported, using memory fallback');
-        const memoryStorage: Record<string, string> = {};
-        Object.defineProperty(window, 'sessionStorage', {
-            value: {
-                getItem: (key: string) => memoryStorage[key] || null,
-                setItem: (key: string, value: string) => { memoryStorage[key] = String(value); },
-                removeItem: (key: string) => { delete memoryStorage[key]; },
-                clear: () => { for (const k in memoryStorage) delete memoryStorage[k]; },
-                length: 0,
-                key: (index: number) => Object.keys(memoryStorage)[index] || null,
-            },
-            writable: true
-        });
+    getItem(key: string): string | null {
+        if (this.isBroken) return this.memoryFallback[key] || null;
+        try {
+            return window[this.type].getItem(key);
+        } catch (e) {
+            // If random read fails, fall back to memory for this read (rare)
+            return this.memoryFallback[key] || null;
+        }
     }
 
-} catch (e) {
-    console.error('Failed to initialize safe storage', e);
+    setItem(key: string, value: string): void {
+        const strValue = String(value);
+        if (this.isBroken) {
+            this.memoryFallback[key] = strValue;
+            return;
+        }
+
+        try {
+            window[this.type].setItem(key, strValue);
+        } catch (e) {
+            // E.g. QuotaExceededError or SecurityError
+            console.warn(`[SafeStorage] setItem failed for ${key}, falling back to memory.`);
+            this.memoryFallback[key] = strValue;
+        }
+    }
+
+    removeItem(key: string): void {
+        if (this.isBroken) {
+            delete this.memoryFallback[key];
+            return;
+        }
+        try {
+            window[this.type].removeItem(key);
+        } catch (e) {
+            delete this.memoryFallback[key];
+        }
+    }
+
+    clear(): void {
+        if (this.isBroken) {
+            this.memoryFallback = {};
+            return;
+        }
+        try {
+            window[this.type].clear();
+        } catch (e) {
+            this.memoryFallback = {};
+        }
+    }
 }
+
+export const safeLocalStorage = new SafeStorage('localStorage');
+export const safeSessionStorage = new SafeStorage('sessionStorage');

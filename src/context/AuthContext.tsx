@@ -46,16 +46,28 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const signInWithGoogle = async () => {
         try {
-            const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+            // Robust mobile detection (including iPadOS 13+ which pretends to be Mac)
+            const ua = navigator.userAgent;
+            const isTouch = navigator.maxTouchPoints > 0;
+            const isMobileUA = /iPhone|iPad|iPod|Android/i.test(ua);
+            const isIpadOS = (navigator.platform === 'MacIntel' && isTouch);
+            const isMobile = isMobileUA || isIpadOS;
 
             if (isMobile) {
+                // Use Redirect for mobile to avoid popup blockers and webview limits
                 await signInWithRedirect(auth, googleProvider);
             } else {
                 await signInWithPopup(auth, googleProvider);
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error("Google verify failed", error);
-            throw error;
+            // If popup is blocked on desktop, fallback to redirect might be a good idea,
+            // but for now we just handle the mobile requirement.
+            if (error?.code === 'auth/popup-blocked') {
+                await signInWithRedirect(auth, googleProvider);
+            } else {
+                throw error;
+            }
         }
     };
 
@@ -67,9 +79,20 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     useEffect(() => {
         // Handle redirect result (for mobile flows)
-        getRedirectResult(auth).catch((error) => {
-            console.error("Auth redirect error:", error);
-        });
+        getRedirectResult(auth)
+            .then((result) => {
+                if (result) {
+                    console.log("Redirect login successful:", result.user.uid);
+                    // The onAuthStateChanged listener will handle state updates,
+                    // but we can log here for debugging.
+                }
+            })
+            .catch((error) => {
+                console.error("Auth redirect error:", error);
+                if (error.code === 'auth/account-exists-with-different-credential') {
+                    // Handle linking if needed, or show specific error
+                }
+            });
 
         let profileUnsubscribe: (() => void) | null = null;
 

@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { User, Bell, Share2, LogOut, Camera, Copy, Check, Plus, X, Shield } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
-import { db } from '../lib/firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { db, storage } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../context/NotificationContext';
@@ -27,6 +28,8 @@ const ProfilePage = () => {
     });
     const [loading, setLoading] = useState(false);
     const [justCopied, setJustCopied] = useState(false);
+    const [photoUploading, setPhotoUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
     // Date inputs state
     const [newDateTitle, setNewDateTitle] = useState('');
     const [newDateVal, setNewDateVal] = useState('');
@@ -70,6 +73,45 @@ const ProfilePage = () => {
             alert('Error updating profile');
         } finally {
             setLoading(false);
+        }
+    };
+
+    const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file || !user) return;
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            alert('Please select an image file');
+            return;
+        }
+
+        // Validate file size (max 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            alert('Image too large. Max 5MB allowed.');
+            return;
+        }
+
+        setPhotoUploading(true);
+        try {
+            const storageRef = ref(storage, `profile_photos/${user.uid}_${Date.now()}`);
+            await uploadBytes(storageRef, file);
+            const downloadURL = await getDownloadURL(storageRef);
+
+            // Update local state
+            setPhotoURL(downloadURL);
+
+            // Save to Firestore immediately
+            await updateDoc(doc(db, 'users', user.uid), {
+                photoURL: downloadURL
+            });
+
+            alert('Profile photo updated!');
+        } catch (error) {
+            console.error('Photo upload error:', error);
+            alert('Failed to upload photo. Please try again.');
+        } finally {
+            setPhotoUploading(false);
         }
     };
 
@@ -136,19 +178,43 @@ const ProfilePage = () => {
         <div className="bg-white font-sans">
             <main className="px-6 space-y-8 pb-32">
                 {/* Profile Picture */}
-                <div className="flex justify-center">
+                <div className="flex flex-col items-center gap-2">
                     <div className="relative">
                         <div className="w-24 h-24 rounded-full bg-slate-200 overflow-hidden border-4 border-white shadow-lg">
-                            {photoURL ? (
+                            {photoUploading ? (
+                                <div className="w-full h-full flex items-center justify-center bg-slate-100">
+                                    <div className="w-6 h-6 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                                </div>
+                            ) : photoURL ? (
                                 <img src={photoURL} alt="Profile" className="w-full h-full object-cover" />
                             ) : (
                                 <User className="w-full h-full p-6 text-slate-400" />
                             )}
                         </div>
-                        <button className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:scale-110 transition-transform">
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/*"
+                            onChange={handlePhotoUpload}
+                            className="hidden"
+                        />
+                        <button
+                            onClick={() => fileInputRef.current?.click()}
+                            disabled={photoUploading}
+                            className="absolute bottom-0 right-0 bg-primary text-white p-2 rounded-full shadow-lg hover:scale-110 transition-transform disabled:opacity-50"
+                        >
                             <Camera size={16} />
                         </button>
                     </div>
+                    {/* Display name below photo */}
+                    {(displayName || user?.displayName) && (
+                        <p className="text-lg font-bold text-darkbg text-center">
+                            {displayName || user?.displayName}
+                        </p>
+                    )}
+                    {user?.email && (
+                        <p className="text-sm text-slate-400 text-center">{user.email}</p>
+                    )}
                 </div>
 
                 {/* Language Settings */}
@@ -459,6 +525,9 @@ const ProfilePage = () => {
                     {loading ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <Check size={18} />}
                     {t('save_changes')}
                 </button>
+            </div>
+            <div className="text-center pb-8 text-[10px] text-slate-300 font-mono">
+                v0.1.7
             </div>
         </div>
     );

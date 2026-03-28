@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share, Heart, MoreVertical } from 'lucide-react';
+import { safeLocalStorage } from '../../lib/safe-storage';
 
 const InstallPrompt = () => {
     const { t } = useTranslation();
@@ -16,7 +17,7 @@ const InstallPrompt = () => {
         if (isStandalone) return;
 
         // 2. Check dismissal frequency (7 days)
-        const dismissedAt = localStorage.getItem('installPromptDismissedAt');
+        const dismissedAt = safeLocalStorage.getItem('installPromptDismissedAt');
         if (dismissedAt) {
             const daysSinceDismissal = (Date.now() - parseInt(dismissedAt, 10)) / (1000 * 60 * 60 * 24);
             if (daysSinceDismissal < 7) return;
@@ -73,14 +74,14 @@ const InstallPrompt = () => {
 
     const handleDismiss = () => {
         setIsVisible(false);
-        localStorage.setItem('installPromptDismissedAt', Date.now().toString());
+        safeLocalStorage.setItem('installPromptDismissedAt', Date.now().toString());
     };
 
     if (!isVisible) return null;
 
     return (
         <AnimatePresence>
-            <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center pb-6 px-4">
+            <div className="fixed inset-x-0 bottom-0 z-50 pointer-events-none flex justify-center pb-28 px-4">
                 <motion.div
                     initial={{ y: 100, opacity: 0 }}
                     animate={{ y: 0, opacity: 1 }}
@@ -94,7 +95,7 @@ const InstallPrompt = () => {
 
                     <button
                         onClick={handleDismiss}
-                        className="absolute top-3 right-3 p-1 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
+                        className="absolute top-2 right-2 p-3 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors"
                         aria-label={t('close')}
                     >
                         <X size={18} />

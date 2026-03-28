@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useToast } from '../context/ToastContext';
+import { safeLocalStorage } from '../lib/safe-storage';
 
 const InviteHandler = () => {
     const [searchParams] = useSearchParams();
@@ -55,7 +56,7 @@ const InviteHandler = () => {
             }
             // Scenario B: User is NOT logged in
             else {
-                localStorage.setItem('pendingInvite', fromId);
+                safeLocalStorage.setItem('pendingInvite', fromId);
                 navigate('/'); // Will trigger login/signup flow on landing
             }
         };

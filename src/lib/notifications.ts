@@ -1,6 +1,8 @@
 // import { doc, getDoc } from 'firebase/firestore';
 // import { db } from '../lib/firebase';
 
+import { safeLocalStorage } from './safe-storage';
+
 interface ImportantDate {
     title: string;
     date: string;
@@ -36,12 +38,12 @@ export const checkAndSendNotifications = async (dates: ImportantDate[]) => {
             // Simple dedupe: Check if we already showed this notification today
             // In a real app, storing this in localStorage with a timestamp key is better
             const key = `notif_${event.title}_${now.toDateString()}`;
-            if (!localStorage.getItem(key)) {
+            if (!safeLocalStorage.getItem(key)) {
                 new Notification("Upcoming Event", {
                     body: body,
                     icon: '/icon-192.png' // Ensure this exists or use a placeholder
                 });
-                localStorage.setItem(key, 'true');
+                safeLocalStorage.setItem(key, 'true');
             }
         }
     });

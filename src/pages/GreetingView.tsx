@@ -32,7 +32,30 @@ const GreetingView = () => {
     if (loading) return <div className="min-h-screen bg-lightbg flex items-center justify-center"><Loader2 className="animate-spin text-primary" /></div>;
     if (!greeting) return <div className="min-h-screen bg-lightbg flex items-center justify-center">Greeting not found.</div>;
 
-    const { theme, message, senderName, videoUrl } = greeting;
+    const { theme, message, senderName, videoUrl, scheduledFor } = greeting;
+
+    // Check if scheduled for future
+    if (scheduledFor) {
+        const scheduledDate = scheduledFor.toDate();
+        const now = new Date();
+        if (scheduledDate > now) {
+            return (
+                <div className="min-h-screen bg-lightbg flex flex-col items-center justify-center p-6 text-center">
+                    <div className="bg-white p-8 rounded-3xl shadow-xl max-w-sm w-full">
+                        <Gift className="w-16 h-16 text-primary mx-auto mb-4 animate-bounce" />
+                        <h1 className="text-2xl font-bold text-darkbg mb-2">Coming Soon!</h1>
+                        <p className="text-slate-500 mb-6">
+                            {senderName} has sent you a surprise!<br />
+                            It will be unlocked on:
+                        </p>
+                        <div className="bg-slate-100 py-3 px-6 rounded-xl font-mono text-lg font-bold text-slate-700">
+                            {scheduledDate.toLocaleDateString()}
+                        </div>
+                    </div>
+                </div>
+            );
+        }
+    }
 
     return (
         <div className="min-h-screen bg-lightbg flex flex-col items-center justify-center p-6 relative overflow-hidden">

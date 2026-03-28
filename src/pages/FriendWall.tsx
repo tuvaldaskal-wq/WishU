@@ -186,7 +186,7 @@ const FriendWall = () => {
     const filteredGifts = gifts.filter(gift => {
         const price = parsePrice(gift.price);
         switch (priceFilter) {
-            case 'low': return price < 249;
+            case 'low': return price <= 249;
             case 'mid': return price >= 250 && price <= 399;
             case 'high': return price >= 400 && price <= 699;
             case 'premium': return price >= 700;
@@ -287,6 +287,7 @@ const FriendWall = () => {
                     name: friendName,
                 }}
                 eventType={nextEvent?.title.toLowerCase().includes('birthday') ? 'birthday' : 'other'}
+                eventDate={nextEvent?.date}
             />
         </div >
     );

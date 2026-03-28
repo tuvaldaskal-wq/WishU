@@ -4,7 +4,7 @@ import { X, PartyPopper, Gift, Sparkles, Share2, Loader2, Video } from 'lucide-r
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { db, storage } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { VideoRecorder } from '../media/VideoRecorder';
 
@@ -17,9 +17,10 @@ interface SendGreetingModalProps {
         photoURL?: string;
     };
     eventType: 'birthday' | 'other';
+    eventDate?: Date;
 }
 
-export const SendGreetingModal = ({ isOpen, onClose, recipient, eventType }: SendGreetingModalProps) => {
+export const SendGreetingModal = ({ isOpen, onClose, recipient, eventType, eventDate }: SendGreetingModalProps) => {
     const { user } = useAuth();
     const { showToast } = useToast();
 
@@ -59,12 +60,37 @@ export const SendGreetingModal = ({ isOpen, onClose, recipient, eventType }: Sen
         setUploading(true);
 
         try {
+            // Calculate Scheduling
+            let scheduledFor: Date | null = null;
+            if (eventDate) {
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                const eventDay = new Date(eventDate);
+                eventDay.setHours(0, 0, 0, 0);
+
+                if (eventDay > today) {
+                    scheduledFor = eventDay;
+                }
+            }
+
             let videoUrl = '';
             if (videoBlob) {
-                const storageRef = ref(storage, `greetings/${user.uid}_${Date.now()}.webm`);
-                await uploadBytes(storageRef, videoBlob);
-                videoUrl = await getDownloadURL(storageRef);
+                try {
+                    console.log("Starting video upload...");
+                    const storageRef = ref(storage, `greetings/${user.uid}_${Date.now()}.webm`);
+                    const snapshot = await uploadBytes(storageRef, videoBlob);
+                    console.log("Video uploaded successfully, size:", snapshot.metadata.size);
+                    videoUrl = await getDownloadURL(storageRef);
+                    console.log("Download URL obtained");
+                } catch (uploadError: any) {
+                    console.error("Video upload failed:", uploadError);
+                    showToast(`Video upload failed: ${uploadError?.message || 'Unknown error'}`, "error");
+                    setUploading(false);
+                    return; // Stop if video upload fails
+                }
             }
+
+            const validFrom = scheduledFor ? Timestamp.fromDate(scheduledFor) : null;
 
             // Create Greeting Doc
             const greetingData = {
@@ -77,12 +103,13 @@ export const SendGreetingModal = ({ isOpen, onClose, recipient, eventType }: Sen
                 message,
                 videoUrl,
                 createdAt: serverTimestamp(),
+                scheduledFor: validFrom, // For tracking
                 read: false
             };
 
             const docRef = await addDoc(collection(db, 'greetings'), greetingData);
 
-            // Create Notification for the recipient
+            // Create Notification
             await addDoc(collection(db, 'notifications'), {
                 userId: recipient.uid,
                 type: 'greeting',
@@ -93,45 +120,26 @@ export const SendGreetingModal = ({ isOpen, onClose, recipient, eventType }: Sen
                     senderName: user.displayName || 'a friend'
                 },
                 read: false,
+                validFrom: validFrom, // Client-side filtering uses this
                 createdAt: serverTimestamp()
             });
 
             // Share Link
-            const shareUrl = `${window.location.origin}/greeting/${docRef.id}`;
-            const shareText = message || `Happy ${eventType === 'birthday' ? 'Birthday' : 'Day'} ${recipient.name}!`;
 
-            const shareData = {
-                title: `Greeting for ${recipient.name}`,
-                text: `${shareText}\n\nI made a special card for you:`,
-                url: shareUrl
-            };
 
-            // Use Web Share API if available
-            if (navigator.share) {
-                try {
-                    await navigator.share(shareData);
-                } catch (shareError) {
-                    // Ignore share cancellation
-                    console.log('Share was cancelled or failed', shareError);
-                    // Use clipboard fallback if share failed/cancelled but user still wants feedback
-                    if ((shareError as Error).name !== 'AbortError') {
-                        navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-                        showToast("Greeting link copied to clipboard!", "success");
-                    }
-                }
-            } else {
-                navigator.clipboard.writeText(`${shareData.text} ${shareData.url}`);
-                showToast("Greeting link copied to clipboard!", "success");
-            }
+            // Just show success message and close
+            const toastMsg = scheduledFor
+                ? `Greeting scheduled for ${scheduledFor.toLocaleDateString()}!`
+                : "Greeting sent successfully!";
+            showToast(toastMsg, "success");
 
-            // Close modal after successful operations
             onClose();
             setMessage('');
             setVideoBlob(null);
             setShowRecorder(false);
 
         } catch (error) {
-            console.error(error);
+            console.error("Critical error in handleShare:", error);
             showToast("Failed to send greeting", "error");
         } finally {
             setUploading(false);

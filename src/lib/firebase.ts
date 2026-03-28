@@ -3,7 +3,7 @@ import { getAuth } from 'firebase/auth';
 import { getFirestore } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getFunctions } from 'firebase/functions';
-import { getMessaging } from 'firebase/messaging';
+import { getMessaging, Messaging } from 'firebase/messaging';
 import { GoogleAuthProvider } from 'firebase/auth';
 
 const firebaseConfig = {
@@ -20,6 +20,17 @@ export const auth = getAuth(app);
 export const db = getFirestore(app);
 export const storage = getStorage(app);
 export const functions = getFunctions(app, 'europe-west1');
-export const messaging = getMessaging(app);
 export const googleProvider = new GoogleAuthProvider();
+
+// Firebase Messaging is not supported on iOS Safari and some other browsers.
+// Guard with try-catch so a failure here never crashes the entire app.
+let _messaging: Messaging | null = null;
+try {
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+        _messaging = getMessaging(app);
+    }
+} catch {
+    console.warn('Firebase Messaging is not supported in this browser.');
+}
+export const messaging = _messaging;
 

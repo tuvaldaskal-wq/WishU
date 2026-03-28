@@ -3,6 +3,7 @@ import { useAuth } from '../context/AuthContext';
 import { useToast } from '../context/ToastContext';
 import { db } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, query, where, getDocs } from 'firebase/firestore';
+import { safeLocalStorage } from '../lib/safe-storage';
 
 export const InviteListener = () => {
     const { user } = useAuth();
@@ -14,12 +15,12 @@ export const InviteListener = () => {
             if (!user) return;
             if (processedRef.current) return;
 
-            const pendingInvite = localStorage.getItem('pendingInvite');
+            const pendingInvite = safeLocalStorage.getItem('pendingInvite');
             if (!pendingInvite) return;
 
             // Don't friend yourself
             if (pendingInvite === user.uid) {
-                localStorage.removeItem('pendingInvite');
+                safeLocalStorage.removeItem('pendingInvite');
                 return;
             }
 
@@ -45,7 +46,7 @@ export const InviteListener = () => {
                     showToast("You are now connected with your friend!", "success");
                 }
 
-                localStorage.removeItem('pendingInvite');
+                safeLocalStorage.removeItem('pendingInvite');
                 processedRef.current = true;
 
             } catch (error) {

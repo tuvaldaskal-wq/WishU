@@ -54,10 +54,15 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         );
 
         const unsubscribe = onSnapshot(q, (snapshot) => {
-            const loadedNotifications = snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            })) as Notification[];
+            const loadedNotifications = snapshot.docs
+                .map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }))
+                .filter((n: any) => {
+                    if (!n.validFrom) return true;
+                    return new Date(n.validFrom.seconds * 1000) <= new Date();
+                }) as Notification[];
 
             setNotifications(loadedNotifications);
             setUnreadCount(loadedNotifications.filter(n => !n.read).length);
@@ -90,11 +95,13 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     };
 
     const setupMessagingToken = async (uid: string) => {
+        // messaging is null on unsupported browsers (iOS Safari, Firefox, etc.)
+        if (!messaging) return;
+
         let registration;
         try {
             // Using navigator.serviceWorker.ready to get the registration from Vite-PWA
             registration = await navigator.serviceWorker.ready;
-            console.log("Unified Service Worker ready:", registration);
         } catch (swError) {
             console.error("Service Worker retrieval failed:", swError);
             return;
@@ -108,8 +115,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 vapidKey,
                 serviceWorkerRegistration: registration
             });
-
-            console.log("FCM Token retrieved:", token);
 
             if (token) {
                 try {
@@ -131,8 +136,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
             setupMessagingToken(user.uid);
         }
 
+        // messaging is null on unsupported browsers — skip foreground listener
+        if (!messaging) return;
+
         const unsubscribeMessage = onMessage(messaging, (payload) => {
-            console.log("Foreground message received:", payload);
             // Show a custom notification in foreground if needed, or rely on system
             if (Notification.permission === 'granted') {
                 new Notification(payload.notification?.title || "New Message", {

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Gift } from 'lucide-react';
+import { safeLocalStorage } from '../lib/safe-storage';
 
 const ShareTargetPage = () => {
     const [searchParams] = useSearchParams();
@@ -57,8 +58,8 @@ const ShareTargetPage = () => {
             });
         } else {
             // Logged Out -> Login (save pending)
-            localStorage.setItem('pendingShareUrl', sharedUrl);
-            if (titleParam) localStorage.setItem('pendingShareTitle', titleParam);
+            safeLocalStorage.setItem('pendingShareUrl', sharedUrl);
+            if (titleParam) safeLocalStorage.setItem('pendingShareTitle', titleParam);
             navigate('/login', { replace: true });
         }
 

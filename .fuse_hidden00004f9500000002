@@ -1,0 +1,11 @@
+[debug] [2026-03-28T05:45:00.794Z] ----------------------------------------------------------------------
+[debug] [2026-03-28T05:45:00.795Z] Command:       /usr/bin/node /sessions/determined-exciting-meitner/mnt/WishU/node_modules/firebase-tools/lib/bin/firebase.js login:ci --no-localhost
+[debug] [2026-03-28T05:45:00.795Z] CLI Version:   15.4.0
+[debug] [2026-03-28T05:45:00.796Z] Platform:      linux
+[debug] [2026-03-28T05:45:00.796Z] Node Version:  v22.22.0
+[debug] [2026-03-28T05:45:00.796Z] Time:          Sat Mar 28 2026 08:45:00 GMT+0300 (Israel Daylight Time)
+[debug] [2026-03-28T05:45:00.796Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-28T05:45:00.797Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[error] 
+[error] Error: Cannot run login:ci in non-interactive mode.

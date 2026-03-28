@@ -1,6 +1,5 @@
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
-import { useNavigate } from 'react-router-dom';
 import { ExternalLink, Check, Gift as GiftIcon, Trash2, Heart, Lock, ShoppingCart } from 'lucide-react';
 import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
@@ -33,7 +32,6 @@ interface GiftCardProps {
 export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
     const { t } = useTranslation();
     const { user } = useAuth();
-    const navigate = useNavigate();
 
     const toggleStatus = async () => {
         if (isOwner) return; // Owner can't purchase their own gift via this button
@@ -106,7 +104,9 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
         if (isOwner && onEdit) {
             onEdit(gift);
         } else {
-            navigate(`/gift/${gift.id}`);
+            // Open external purchase link for non-owners
+            console.log("Opening external link:", gift.link);
+            window.open(wrapAffiliateLink(gift.link), '_blank', 'noopener,noreferrer');
         }
     };
 
@@ -178,19 +178,28 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
                     </div>
                 </div>
 
-                {/* Cart/Purchase Button Overly for Friends (Floating) */}
+                {/* Mark as Bought Button for Friends - Always Visible */}
                 {!isOwner && (
                     <button
-                        onClick={toggleStatus}
+                        onClick={(e) => {
+                            e.stopPropagation();
+                            toggleStatus();
+                        }}
                         disabled={isLocked}
-                        className={`absolute bottom-3 right-3 w-10 h-10 rounded-full flex items-center justify-center shadow-lg transition-all z-20 ${isLocked
+                        className={`absolute bottom-3 left-3 right-3 py-2.5 rounded-xl flex items-center justify-center gap-2 shadow-lg transition-all z-20 font-bold text-xs ${isLocked
                             ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
                             : showPurchasedToUser
                                 ? 'bg-success text-white'
-                                : 'bg-primary text-white hover:scale-105'
+                                : 'bg-primary text-white hover:scale-[1.02] active:scale-95'
                             }`}
                     >
-                        {isLocked ? <Lock size={16} /> : (showPurchasedToUser ? <Check size={18} /> : <ShoppingCart size={18} />)}
+                        {isLocked ? (
+                            <><Lock size={14} /> Bought by someone</>
+                        ) : showPurchasedToUser ? (
+                            <><Check size={16} /> Marked as Bought</>
+                        ) : (
+                            <><ShoppingCart size={14} /> Mark as Bought</>
+                        )}
                     </button>
                 )}
             </div>

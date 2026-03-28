@@ -1,0 +1,22 @@
+[debug] [2026-03-28T05:43:30.217Z] ----------------------------------------------------------------------
+[debug] [2026-03-28T05:43:30.218Z] Command:       /usr/bin/node /sessions/determined-exciting-meitner/mnt/WishU/node_modules/firebase-tools/lib/bin/firebase.js deploy --only hosting
+[debug] [2026-03-28T05:43:30.219Z] CLI Version:   15.4.0
+[debug] [2026-03-28T05:43:30.219Z] Platform:      linux
+[debug] [2026-03-28T05:43:30.219Z] Node Version:  v22.22.0
+[debug] [2026-03-28T05:43:30.219Z] Time:          Sat Mar 28 2026 08:43:30 GMT+0300 (Israel Daylight Time)
+[debug] [2026-03-28T05:43:30.219Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-28T05:43:30.220Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-03-28T05:44:08.311Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-28T05:44:08.327Z] Error: Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.
+    at GoogleAuth.getApplicationDefaultAsync (/sessions/determined-exciting-meitner/mnt/WishU/node_modules/google-auth-library/build/src/auth/googleauth.js:287:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async GoogleAuth._GoogleAuth_determineClient (/sessions/determined-exciting-meitner/mnt/WishU/node_modules/google-auth-library/build/src/auth/googleauth.js:834:32)
+    at async GoogleAuth.getClient (/sessions/determined-exciting-meitner/mnt/WishU/node_modules/google-auth-library/build/src/auth/googleauth.js:698:20)
+    at async GoogleAuth.getAccessToken (/sessions/determined-exciting-meitner/mnt/WishU/node_modules/google-auth-library/build/src/auth/googleauth.js:722:24)
+    at async autoAuth (/sessions/determined-exciting-meitner/mnt/WishU/node_modules/firebase-tools/lib/requireAuth.js:28:19)
+    at async requireAuth (/sessions/determined-exciting-meitner/mnt/WishU/node_modules/firebase-tools/lib/requireAuth.js:90:20)
+    at async requirePermissions (/sessions/determined-exciting-meitner/mnt/WishU/node_modules/firebase-tools/lib/requirePermissions.js:17:5)
+    at async /sessions/determined-exciting-meitner/mnt/WishU/node_modules/firebase-tools/lib/command.js:261:17
+[error] 
+[error] Error: Failed to authenticate, have you run firebase login?
