@@ -154,7 +154,7 @@ export const AddGift = ({ onClose, initialUrl }: AddGiftProps) => {
             onClose();
         } catch (err) {
             console.error("Failed to add gift", err);
-            alert("Error adding gift");
+            alert(t('error_adding_gift'));
         } finally {
             setLoading(false);
         }
@@ -188,7 +188,7 @@ export const AddGift = ({ onClose, initialUrl }: AddGiftProps) => {
                             value={link}
                             onChange={(e) => setLink(e.target.value)}
                             placeholder={t('paste_link')}
-                            label="Link"
+                            label={t('link')}
                             className="pl-10"
                         />
                         <div className="absolute left-3 top-[38px] text-slate-400">
@@ -232,15 +232,15 @@ export const AddGift = ({ onClose, initialUrl }: AddGiftProps) => {
                             className="hidden"
                         />
                         <div className="flex-1 min-w-0 flex flex-col justify-center">
-                            <h4 className="font-semibold text-sm text-darkbg truncate">{title || 'Gift Title'}</h4>
-                            <p className="text-xs text-slate-500 truncate">{link || 'Paste a link above'}</p>
+                            <h4 className="font-semibold text-sm text-darkbg truncate">{title || t('gift_title')}</h4>
+                            <p className="text-xs text-slate-500 truncate">{link || t('paste_link_above')}</p>
                             {!image && (
                                 <button
                                     onClick={() => fileInputRef.current?.click()}
                                     className="mt-1 text-xs text-primary font-medium flex items-center gap-1"
                                 >
                                     <Upload size={12} />
-                                    Upload image
+                                    {t('upload_image')}
                                 </button>
                             )}
                         </div>
@@ -271,14 +271,14 @@ export const AddGift = ({ onClose, initialUrl }: AddGiftProps) => {
                         {isPriceInvalid && (
                             <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
                                 <AlertCircle size={12} />
-                                Price is required
+                                {t('price_required')}
                             </p>
                         )}
                     </div>
 
                     {/* Visibility Selection */}
                     <div>
-                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Who can see this?</label>
+                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">{t('who_can_see')}</label>
                         <div className="flex flex-wrap gap-2">
                             {['Friends', 'Family', 'Partner', 'Work', 'Other'].map(group => (
                                 <button
@@ -295,7 +295,7 @@ export const AddGift = ({ onClose, initialUrl }: AddGiftProps) => {
                                         : 'bg-white text-slate-400 border-slate-200'
                                         }`}
                                 >
-                                    {group}
+                                    {t('group_' + group.toLowerCase())}
                                 </button>
                             ))}
                         </div>

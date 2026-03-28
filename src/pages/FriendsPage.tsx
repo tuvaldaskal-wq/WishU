@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Users as UsersIcon, Check, X, Share2, Loader2, Sparkles, Search, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
@@ -11,6 +12,7 @@ const SEARCH_USERS_URL = 'https://europe-west1-wishu-c16d5.cloudfunctions.net/se
 
 const FriendsPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { user } = useAuth();
     const { searchQuery } = useSearch();
 
@@ -208,7 +210,7 @@ const FriendsPage = () => {
                     <section>
                         <h2 className="font-bold text-darkbg mb-3 flex items-center gap-2">
                             <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                            Friend Requests
+                            {t('friend_requests')}
                         </h2>
                         <div className="space-y-3">
                             {pendingRequests.map(req => (
@@ -217,7 +219,7 @@ const FriendsPage = () => {
                                         <img src={req.friend.photoURL || 'https://i.pravatar.cc/150'} className="w-10 h-10 rounded-full bg-slate-200" />
                                         <div>
                                             <p className="font-bold text-darkbg text-sm">{req.friend.displayName || 'Unknown'}</p>
-                                            <p className="text-xs text-slate-400">Wants to connect</p>
+                                            <p className="text-xs text-slate-400">{t('wants_to_connect')}</p>
                                         </div>
                                     </div>
                                     <div className="flex gap-2">
@@ -235,7 +237,7 @@ const FriendsPage = () => {
                     <section>
                         <h2 className="font-bold text-darkbg mb-3 flex items-center gap-2">
                             <Search size={16} className="text-primary" />
-                            {isSearchingGlobal ? 'Searching...' : 'Find New Friends'}
+                            {isSearchingGlobal ? t('searching') : t('find_new_friends')}
                         </h2>
 
                         {isSearchingGlobal ? (
@@ -258,14 +260,14 @@ const FriendsPage = () => {
                                             </div>
                                         </div>
                                         {sentRequests.has(foundUser.uid) ? (
-                                            <span className="px-4 py-2 text-slate-400 text-sm">Request Sent</span>
+                                            <span className="px-4 py-2 text-slate-400 text-sm">{t('request_sent')}</span>
                                         ) : (
                                             <button
                                                 onClick={() => sendFriendRequest(foundUser)}
                                                 className="flex items-center gap-1 px-4 py-2 bg-primary text-white rounded-xl text-sm font-medium hover:bg-primary/90 transition-colors"
                                             >
                                                 <UserPlus size={16} />
-                                                Connect
+                                                {t('connect')}
                                             </button>
                                         )}
                                     </div>
@@ -273,8 +275,8 @@ const FriendsPage = () => {
                             </div>
                         ) : filteredFriends.length === 0 && !isSearchingGlobal ? (
                             <div className="text-center py-6 px-4 bg-slate-50 rounded-xl">
-                                <p className="text-slate-500 text-sm">No users found matching "{searchQuery}"</p>
-                                <p className="text-slate-400 text-xs mt-1">Try a different name or email</p>
+                                <p className="text-slate-500 text-sm">{t('no_users_found', { query: searchQuery })}</p>
+                                <p className="text-slate-400 text-xs mt-1">{t('try_different_search')}</p>
                             </div>
                         ) : null}
                     </section>
@@ -283,9 +285,9 @@ const FriendsPage = () => {
                 {/* Friends List */}
                 <section>
                     <div className="flex justify-between items-center mb-4">
-                        <h2 className="font-bold text-darkbg">Your Friends ({filteredFriends.length})</h2>
+                        <h2 className="font-bold text-darkbg">{t('your_friends_count', { count: filteredFriends.length })}</h2>
                         <button onClick={handleShareProfile} className="text-primary text-sm font-medium flex items-center gap-1">
-                            <Share2 size={16} /> Invite
+                            <Share2 size={16} /> {t('invite')}
                         </button>
                     </div>
 
@@ -296,10 +298,10 @@ const FriendsPage = () => {
                             <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                                 <UsersIcon size={32} />
                             </div>
-                            <h3 className="font-bold text-slate-700 mb-1">No friends yet</h3>
-                            <p className="text-sm text-slate-400 mb-4">Search for people above or invite them to join WishU!</p>
+                            <h3 className="font-bold text-slate-700 mb-1">{t('no_friends_yet')}</h3>
+                            <p className="text-sm text-slate-400 mb-4">{t('hint_add_friends')}</p>
                             <button onClick={handleShareProfile} className="bg-darkbg text-white px-6 py-3 rounded-xl text-sm font-bold shadow-lg">
-                                Invite Friends
+                                {t('invite_friends')}
                             </button>
                         </div>
                     ) : (
@@ -319,7 +321,7 @@ const FriendsPage = () => {
                                         </div>
                                         <div className="flex-1">
                                             <h3 className="font-bold text-slate-800">{friendship.friend.displayName}</h3>
-                                            <p className="text-xs text-slate-400">Tap to see wishlist</p>
+                                            <p className="text-xs text-slate-400">{t('tap_to_see_wishlist')}</p>
                                         </div>
                                         <div className="w-8 h-8 rounded-full bg-secondary flex items-center justify-center text-slate-400">
                                             <Sparkles size={16} />
@@ -328,7 +330,7 @@ const FriendsPage = () => {
 
                                     {/* Group Selector */}
                                     <div className="flex items-center gap-2 pt-2 border-t border-slate-50">
-                                        <span className="text-xs text-slate-400">Group:</span>
+                                        <span className="text-xs text-slate-400">{t('group_label')}:</span>
                                         <select
                                             value={friendship.groups?.[friendship.friendId] || 'Friends'}
                                             onChange={async (e) => {
@@ -350,11 +352,11 @@ const FriendsPage = () => {
                                             }}
                                             className="bg-slate-50 text-xs font-medium text-slate-600 rounded-lg px-2 py-1 border border-slate-200 focus:outline-none focus:border-primary"
                                         >
-                                            <option value="Friends">Friends</option>
-                                            <option value="Family">Family</option>
-                                            <option value="Partner">Partner</option>
-                                            <option value="Work">Work</option>
-                                            <option value="Other">Other</option>
+                                            <option value="Friends">{t('group_friends')}</option>
+                                            <option value="Family">{t('group_family')}</option>
+                                            <option value="Partner">{t('group_partner')}</option>
+                                            <option value="Work">{t('group_work')}</option>
+                                            <option value="Other">{t('group_other')}</option>
                                         </select>
                                     </div>
                                 </div>

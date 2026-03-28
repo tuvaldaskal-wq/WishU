@@ -6,7 +6,7 @@ i18n
     .use(LanguageDetector)
     .use(initReactI18next)
     .init({
-        debug: true,
+        debug: false,
         fallbackLng: 'en',
         interpolation: {
             escapeValue: false,
@@ -106,6 +106,8 @@ i18n
                     drag_instruction: "Drag to reorder",
 
                     most_wanted: "Most Wanted",
+                    upcoming_event: "Upcoming Event",
+                    check_wishlist: "Check out the wishlist below to find the perfect gift! 🎁",
                     // Install Prompt
                     install_title: "Install WishU",
                     install_desc_android: "Add to home screen for quick access",
@@ -113,7 +115,117 @@ i18n
                     install_ios_instruction: "Tap Share and select 'Add to Home Screen'",
                     install_button: "Install Now",
                     install_android_manual: "Tap the menu icon (⋮) and select 'Add to Home screen'",
-                    close: "Close"
+                    close: "Close",
+
+                    // Profile page
+                    log_out: "Log Out",
+                    error_updating_profile: "Error updating profile",
+                    error_select_image: "Please select an image file",
+                    error_image_too_large: "Image too large. Max 5MB allowed.",
+                    success_photo_updated: "Profile photo updated!",
+                    error_upload_photo: "Failed to upload photo. Please try again.",
+                    section_other_dates: "Other Important Dates",
+                    date_type_birthday: "Birthday",
+                    date_type_anniversary: "Anniversary",
+                    date_type_other: "Other",
+                    success_date_added: "Date added! It will appear on your calendar.",
+                    section_notification_prefs: "Notification Preferences",
+                    first_reminder: "First Reminder",
+                    followup_reminder: "Follow-up Reminder",
+
+                    // Gifts
+                    edit_gift: "Edit Gift",
+                    upload_image: "Upload image",
+                    who_can_see: "Who can see this?",
+                    visibility_only_me: "Only Me",
+                    visibility_friends: "Friends",
+                    visibility_everyone: "Everyone",
+                    price_required: "Price is required",
+                    error_adding_gift: "Error adding gift",
+                    error_updating_gift: "Error updating gift",
+                    searching_price: "🔍 Searching for price...",
+                    still_searching: "⏳ Still searching... You can update details manually below.",
+                    price_found: "✅ Price found",
+                    error_gift_not_found: "Gift Not Found",
+                    view_in_store: "View in Store",
+                    go_back: "Go Back",
+                    priceless: "Priceless",
+                    close_wish: "Close Wish",
+                    mark_as_bought: "Mark as Bought",
+                    bought_by_someone: "Bought by someone",
+                    marked_as_bought: "Marked as Bought",
+
+                    // Friends
+                    friend_requests: "Friend Requests",
+                    find_new_friends: "Find New Friends",
+                    wants_to_connect: "Wants to connect",
+                    connect: "Connect",
+                    request_sent: "Request Sent",
+                    invite: "Invite",
+                    invite_friends: "Invite Friends",
+                    no_friends_yet: "No friends yet",
+                    hint_add_friends: "Search for people above or invite them to join WishU!",
+                    tap_to_see_wishlist: "Tap to see wishlist",
+                    searching: "Searching...",
+                    group_label: "Group",
+
+                    // Notifications
+                    notifications: "Notifications",
+                    no_notifications: "No notifications yet",
+
+                    // Calendar
+                    no_upcoming_events_hint: "Add friends or ask them to set their birthday!",
+                    find_friends: "Find Friends",
+
+                    // Top 5
+                    top5_page_subtitle: "Rank your most wanted gifts for your partner to see.",
+                    top5_drag_hint: "Drag or add gifts here",
+                    placeholder_search_gifts: "Search gifts...",
+                    no_gifts_found: "No gifts found.",
+                    max_top5_reached: "You can only have 5 top wishes! Remove one first.",
+
+                    // Greeting
+                    send_greeting: "Send Greeting",
+                    write_wish_placeholder: "Write your personal wish...",
+                    ai_magic: "AI Magic",
+                    uploading: "Uploading...",
+                    greeting_not_found: "Greeting not found or has been deleted.",
+                    message_from: "Message From",
+
+                    // Extra gift keys
+                    error_gift_purchased_by_other: "This gift was marked as purchased by someone else.",
+                    error_deleting_gift: "Error deleting gift",
+                    unknown_gift: "Unknown Gift",
+                    paste_link_above: "Paste a link above",
+                    link: "Link",
+
+                    // Calendar
+                    days: "Days",
+                    no_events_found: "No upcoming events found.",
+
+                    // Friends
+                    your_friends_count: "Your Friends ({{count}})",
+                    no_users_found: "No users found matching \"{{query}}\"",
+                    try_different_search: "Try a different name or email",
+
+                    // Groups (display labels — values stay in English for Firestore)
+                    group_friends: "Friends",
+                    group_family: "Family",
+                    group_partner: "Partner",
+                    group_work: "Work",
+                    group_other: "Other",
+
+                    // Profile
+                    add_date_reminder: "Don't forget to click 'Save Changes' to save your dates!",
+
+                    // Reminder timing options
+                    reminder_1month: "1 month before",
+                    reminder_2weeks: "2 weeks before",
+                    reminder_1week: "1 week before",
+                    reminder_3days: "3 days before",
+                    reminder_1day: "1 day before",
+                    reminder_on_day: "On the day of",
+                    reminder_none: "None"
                 }
             },
             he: {
@@ -200,12 +312,14 @@ i18n
                     hours_left: "שעות",
                     event_today: "זה קורה היום! 🎉",
                     no_upcoming_events: "אין אירועים קרובים",
-                    top5_title: "Top 5 Favorites",
-                    top5_desc: "Rank your most wanted gifts",
-                    top5_section_title: "Your Top 5",
-                    add_from_wishlist: "Add from Wishlist",
-                    drag_instruction: "Drag to reorder",
-                    most_wanted: "Most Wanted",
+                    top5_title: "5 המועדפים",
+                    top5_desc: "דרגי את המתנות הכי רצויות",
+                    top5_section_title: "ה-5 המובילים שלך",
+                    add_from_wishlist: "הוסיפי מהרשימה",
+                    drag_instruction: "גררי לסידור מחדש",
+                    most_wanted: "הכי רצוי",
+                    upcoming_event: "אירוע קרוב",
+                    check_wishlist: "בדקי את רשימת המשאלות למטה למציאת המתנה המושלמת! 🎁",
                     purchased_msg: "בחירה מעולה! לא נגלה להם. 🤫",
                     welcome_back: "כיף שחזרת,",
                     // Install Prompt
@@ -215,7 +329,117 @@ i18n
                     install_ios_instruction: "לחצי על שתף ובחרי 'הוספה למסך הבית'",
                     install_button: "התקני עכשיו",
                     install_android_manual: "לחצי על תפריט הדפדפן (⋮) ובחרי 'הוספה למסך הבית'",
-                    close: "סגור"
+                    close: "סגור",
+
+                    // Profile page
+                    log_out: "התנתקות",
+                    error_updating_profile: "שגיאה בעדכון הפרופיל",
+                    error_select_image: "נא לבחור קובץ תמונה",
+                    error_image_too_large: "התמונה גדולה מדי. מקסימום 5MB.",
+                    success_photo_updated: "תמונת הפרופיל עודכנה!",
+                    error_upload_photo: "העלאת התמונה נכשלה. נסי שוב.",
+                    section_other_dates: "תאריכים חשובים נוספים",
+                    date_type_birthday: "יום הולדת",
+                    date_type_anniversary: "יום נישואין",
+                    date_type_other: "אחר",
+                    success_date_added: "התאריך נוסף! הוא יופיע ביומן שלך.",
+                    section_notification_prefs: "העדפות התראות",
+                    first_reminder: "תזכורת ראשונה",
+                    followup_reminder: "תזכורת מעקב",
+
+                    // Gifts
+                    edit_gift: "עריכת מתנה",
+                    upload_image: "העלאת תמונה",
+                    who_can_see: "מי יכול לראות את זה?",
+                    visibility_only_me: "רק אני",
+                    visibility_friends: "חברים",
+                    visibility_everyone: "כולם",
+                    price_required: "מחיר הוא שדה חובה",
+                    error_adding_gift: "שגיאה בהוספת המתנה",
+                    error_updating_gift: "שגיאה בעדכון המתנה",
+                    searching_price: "🔍 מחפש מחיר...",
+                    still_searching: "⏳ עדיין מחפש... ניתן להוסיף פרטים ידנית בינתיים.",
+                    price_found: "✅ מחיר נמצא",
+                    error_gift_not_found: "המתנה לא נמצאה",
+                    view_in_store: "צפייה בחנות",
+                    go_back: "חזרה",
+                    priceless: "אין מחיר",
+                    close_wish: "סגירת משאלה",
+                    mark_as_bought: "סמן כנרכש",
+                    bought_by_someone: "נרכש על ידי מישהו",
+                    marked_as_bought: "סומן כנרכש",
+
+                    // Friends
+                    friend_requests: "בקשות חברות",
+                    find_new_friends: "מצא חברים חדשים",
+                    wants_to_connect: "רוצה להתחבר",
+                    connect: "התחבר",
+                    request_sent: "בקשה נשלחה",
+                    invite: "הזמן",
+                    invite_friends: "הזמן חברים",
+                    no_friends_yet: "אין חברים עדיין",
+                    hint_add_friends: "חפשי אנשים למעלה או הזמיני אותם להצטרף ל-WishU!",
+                    tap_to_see_wishlist: "לחץ לצפייה ברשימה",
+                    searching: "מחפש...",
+                    group_label: "קבוצה",
+
+                    // Notifications
+                    notifications: "התראות",
+                    no_notifications: "אין התראות עדיין",
+
+                    // Calendar
+                    no_upcoming_events_hint: "הוסיפי חברים או בקשי מהם להגדיר את יום ההולדת שלהם!",
+                    find_friends: "מצא חברים",
+
+                    // Top 5
+                    top5_page_subtitle: "דרגי את המתנות הכי רצויות כדי שהפרטנר שלך יראה.",
+                    top5_drag_hint: "גרור או הוסף מתנות כאן",
+                    placeholder_search_gifts: "חיפוש מתנות...",
+                    no_gifts_found: "לא נמצאו מתנות.",
+                    max_top5_reached: "אפשר להוסיף רק 5 משאלות! הסירי אחת קודם.",
+
+                    // Greeting
+                    send_greeting: "שלח ברכה",
+                    write_wish_placeholder: "כתבי את ברכתך האישית...",
+                    ai_magic: "קסם AI",
+                    uploading: "מעלה...",
+                    greeting_not_found: "הברכה לא נמצאה או שנמחקה.",
+                    message_from: "הודעה מאת",
+
+                    // Extra gift keys
+                    error_gift_purchased_by_other: "מתנה זו סומנה כנרכשת על ידי מישהו אחר.",
+                    error_deleting_gift: "שגיאה במחיקת המתנה",
+                    unknown_gift: "מתנה לא ידועה",
+                    paste_link_above: "הדבק קישור למעלה",
+                    link: "קישור",
+
+                    // Calendar
+                    days: "ימים",
+                    no_events_found: "לא נמצאו אירועים קרובים.",
+
+                    // Friends
+                    your_friends_count: "החברים שלך ({{count}})",
+                    no_users_found: "לא נמצאו משתמשים בשם \"{{query}}\"",
+                    try_different_search: "נסה שם או אימייל אחר",
+
+                    // Groups (display labels)
+                    group_friends: "חברים",
+                    group_family: "משפחה",
+                    group_partner: "פרטנר",
+                    group_work: "עבודה",
+                    group_other: "אחר",
+
+                    // Profile
+                    add_date_reminder: "אל תשכחי ללחוץ על 'שמור שינויים' כדי לשמור את התאריכים!",
+
+                    // Reminder timing options
+                    reminder_1month: "חודש לפני",
+                    reminder_2weeks: "שבועיים לפני",
+                    reminder_1week: "שבוע לפני",
+                    reminder_3days: "3 ימים לפני",
+                    reminder_1day: "יום לפני",
+                    reminder_on_day: "ביום עצמו",
+                    reminder_none: "ללא"
                 }
             }
         }

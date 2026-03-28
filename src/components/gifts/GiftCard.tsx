@@ -42,7 +42,7 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
         // RESTRICTION: If trying to UN-purchase, check ownership
         if (isCurrentlyPurchased) {
             if (gift.purchasedBy && gift.purchasedBy !== user.uid) {
-                alert("This gift was marked as purchased by someone else.");
+                alert(t('error_gift_purchased_by_other'));
                 return;
             }
         }
@@ -194,11 +194,11 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
                             }`}
                     >
                         {isLocked ? (
-                            <><Lock size={14} /> Bought by someone</>
+                            <><Lock size={14} /> {t('bought_by_someone')}</>
                         ) : showPurchasedToUser ? (
-                            <><Check size={16} /> Marked as Bought</>
+                            <><Check size={16} /> {t('marked_as_bought')}</>
                         ) : (
-                            <><ShoppingCart size={14} /> Mark as Bought</>
+                            <><ShoppingCart size={14} /> {t('mark_as_bought')}</>
                         )}
                     </button>
                 )}
@@ -206,11 +206,6 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
 
             {/* Centered Metadata */}
             <div className="flex flex-col items-center gap-1 w-full px-2">
-                {/* Product Code (Small Light Gray) */}
-                <div className="text-[10px] text-slate-400 font-sans uppercase tracking-tight">
-                    CODE: {gift.id.slice(0, 5)}
-                </div>
-
                 {/* Title */}
                 <h3 className={`font-bold text-primary text-sm text-center line-clamp-2 min-h-[2.5rem] ${showPurchasedToUser ? 'line-through text-slate-300' : ''}`}>
                     {gift.title}

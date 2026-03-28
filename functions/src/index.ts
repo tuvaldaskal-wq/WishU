@@ -26,7 +26,7 @@ const SCRAPINGBEE_API_URL = "https://app.scrapingbee.com/api/v1/";
 
 // Runtime options for functions
 const runtimeOpts: functions.RuntimeOptions = {
-    timeoutSeconds: 60,
+    timeoutSeconds: 120,
     memory: "512MB"
 };
 
@@ -63,59 +63,119 @@ function cleanUrl(url: string): string {
 
 function getWaitForSelector(url: string): string | null {
     const lowerUrl = url.toLowerCase();
+    // International
     if (lowerUrl.includes("zara.com")) return ".product-detail-view__main-info";
     if (lowerUrl.includes("adidas")) return ".product-description";
     if (lowerUrl.includes("shein.com") || lowerUrl.includes("shein.co.il")) return ".product-intro";
     if (lowerUrl.includes("hm.com")) return "[data-testid=\"productName\"]";
     if (lowerUrl.includes("asos.com")) return "#product-details";
+    // Israeli retailers
+    if (lowerUrl.includes("terminalx.com")) return ".product-info-price";   // Magento
+    if (lowerUrl.includes("ksp.co.il")) return ".price";
+    if (lowerUrl.includes("ivory.co.il")) return ".price";
+    if (lowerUrl.includes("bug.co.il")) return ".price";
+    if (lowerUrl.includes("golf.co.il")) return ".product-price";
+    if (lowerUrl.includes("castro.com")) return ".price";
+    if (lowerUrl.includes("honigman.co.il")) return ".price";
     return null;
 }
 
 function isBlockPage(html: string): boolean {
-    const blockIndicators = [
-        "access denied", "are you a robot", "security check",
-        "blocked", "captcha", "cloudflare", "ray id",
-        "enable javascript", "403 forbidden"
+    // Only flag genuine block pages, not pages that happen to mention these words in content
+    // Check only a small window of the page (title + early body) to avoid false positives
+    const sample = html.substring(0, 5000).toLowerCase();
+    const hardBlockIndicators = [
+        "are you a robot",
+        "verify you are human",
+        "ddos protection by cloudflare",
+        "access denied",
+        "403 forbidden",
+        "enable javascript and cookies to continue",
     ];
-    const lowerHtml = html.toLowerCase();
-    return blockIndicators.some(indicator => lowerHtml.includes(indicator));
+    return hardBlockIndicators.some(indicator => sample.includes(indicator));
+}
+
+/** Decode HTML entities in a string (handles &amp; &quot; &#39; etc.) */
+function decodeHtmlEntities(str: string): string {
+    return str
+        .replace(/&amp;/g, '&')
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&#39;/g, "'")
+        .replace(/&#(\d+);/g, (_, code) => String.fromCharCode(parseInt(code, 10)));
+}
+
+/**
+ * Extract content from a meta tag that matches a property OR name attribute.
+ * Handles both orderings: <meta property="X" content="Y"> and <meta content="Y" property="X">
+ */
+function extractMetaContent(html: string, attribute: string, value: string): string {
+    // Both orderings — use a two-step approach: find the whole tag, then extract content
+    const tagRegex = new RegExp(
+        `<meta[^>]*(?:property|name)=["']${value}["'][^>]*>`,
+        'i'
+    );
+    const tagMatch = html.match(tagRegex);
+    if (tagMatch) {
+        const contentMatch = tagMatch[0].match(/content=["']([^"']*?)["']/i);
+        if (contentMatch?.[1]) return decodeHtmlEntities(contentMatch[1].trim());
+    }
+    return "";
 }
 
 function extractTitle(html: string): string {
-    const ogMatch = html.match(/<meta[^>]*property=["']og:title["'][^>]*content=["']([^"']*)["']/i);
-    if (ogMatch?.[1]) return ogMatch[1].trim();
+    const og = extractMetaContent(html, 'property', 'og:title');
+    if (og) return og;
 
-    const twitterMatch = html.match(/<meta[^>]*name=["']twitter:title["'][^>]*content=["']([^"']*)["']/i);
-    if (twitterMatch?.[1]) return twitterMatch[1].trim();
+    const twitter = extractMetaContent(html, 'name', 'twitter:title');
+    if (twitter) return twitter;
 
     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
-    if (titleMatch?.[1]) return titleMatch[1].trim().split('|')[0].split('-')[0].trim();
+    if (titleMatch?.[1]) {
+        return decodeHtmlEntities(titleMatch[1].trim().split('|')[0].split(' - ')[0].trim());
+    }
 
     return "";
 }
 
 function extractDescription(html: string): string {
-    const ogMatch = html.match(/<meta[^>]*property=["']og:description["'][^>]*content=["']([^"']*)["']/i);
-    if (ogMatch?.[1]) return ogMatch[1].trim();
+    const og = extractMetaContent(html, 'property', 'og:description');
+    if (og) return og;
 
-    const metaMatch = html.match(/<meta[^>]*name=["']description["'][^>]*content=["']([^"']*)["']/i);
-    if (metaMatch?.[1]) return metaMatch[1].trim();
+    const meta = extractMetaContent(html, 'name', 'description');
+    if (meta) return meta;
 
     return "";
 }
 
 function extractImage(html: string): string {
-    const ogMatch = html.match(/<meta[^>]*property=["']og:image["'][^>]*content=["']([^"']*)["']/i);
-    if (ogMatch?.[1] && ogMatch[1].startsWith('http')) return ogMatch[1].trim();
+    // og:image (property or name variant)
+    const ogImage = extractMetaContent(html, 'property', 'og:image');
+    if (ogImage && (ogImage.startsWith('http') || ogImage.startsWith('//'))) {
+        return ogImage.startsWith('//') ? 'https:' + ogImage : ogImage;
+    }
 
-    const twitterMatch = html.match(/<meta[^>]*name=["']twitter:image["'][^>]*content=["']([^"']*)["']/i);
-    if (twitterMatch?.[1] && twitterMatch[1].startsWith('http')) return twitterMatch[1].trim();
+    // twitter:image
+    const twitterImage = extractMetaContent(html, 'name', 'twitter:image');
+    if (twitterImage && (twitterImage.startsWith('http') || twitterImage.startsWith('//'))) {
+        return twitterImage.startsWith('//') ? 'https:' + twitterImage : twitterImage;
+    }
+
+    // og:image:secure_url
+    const secureUrl = extractMetaContent(html, 'property', 'og:image:secure_url');
+    if (secureUrl && secureUrl.startsWith('http')) return secureUrl;
+
+    // link[rel="image_src"]
+    const linkMatch = html.match(/<link[^>]*rel=["']image_src["'][^>]*href=["']([^"']+)["']/i)
+        || html.match(/<link[^>]*href=["']([^"']+)["'][^>]*rel=["']image_src["']/i);
+    if (linkMatch?.[1] && linkMatch[1].startsWith('http')) return linkMatch[1];
 
     return "";
 }
 
 function extractPrice(html: string): { price: string | null; currency: string | null; source: string } {
-    // JSON-LD extraction
+    // 1. JSON-LD extraction (most reliable)
     const jsonLdMatches = html.matchAll(/<script[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gi);
     for (const match of jsonLdMatches) {
         try {
@@ -125,35 +185,109 @@ function extractPrice(html: string): { price: string | null; currency: string | 
         } catch { }
     }
 
-    // Meta tag extraction
-    const metaMatch = html.match(/<meta[^>]*property=["']product:price:amount["'][^>]*content=["']([^"']*)["']/i);
-    if (metaMatch?.[1]) {
-        return { price: metaMatch[1], currency: "ILS", source: "meta" };
+    // 2. Meta tag: product:price:amount or og:price:amount
+    const metaPrice = extractMetaContent(html, 'property', 'product:price:amount')
+        || extractMetaContent(html, 'property', 'og:price:amount');
+    const metaCurrency = extractMetaContent(html, 'property', 'product:price:currency')
+        || extractMetaContent(html, 'property', 'og:price:currency');
+    if (metaPrice) {
+        return { price: metaPrice, currency: metaCurrency || "ILS", source: "meta" };
     }
 
-    // Regex extraction
-    const priceMatches = html.match(/(?:₪|ILS|NIS)\s*([\d,]+(?:\.\d{2})?)|(?:[\d,]+(?:\.\d{2})?)\s*(?:₪|ILS|NIS)/gi);
-    if (priceMatches?.[0]) {
-        const cleanPrice = priceMatches[0].replace(/[^\d.,]/g, '');
+    // 3. itemprop="price" in HTML
+    const itempropMatch = html.match(/itemprop=["']price["'][^>]*content=["']([^"']+)["']/i)
+        || html.match(/content=["']([^"']+)["'][^>]*itemprop=["']price["']/i);
+    if (itempropMatch?.[1]) {
+        const itempropCurrency = html.match(/itemprop=["']priceCurrency["'][^>]*content=["']([^"']+)["']/i)
+            || html.match(/content=["']([^"']+)["'][^>]*itemprop=["']priceCurrency["']/i);
+        return {
+            price: itempropMatch[1],
+            currency: itempropCurrency?.[1] || "ILS",
+            source: "html"
+        };
+    }
+
+    // 4. Regex: ₪ symbol only (avoid false-positives from "ILS"/"NIS" appearing in currency lists)
+    const ilsMatch = html.match(/₪\s*([\d,]+(?:\.\d{2})?)|(?:[\d,]+(?:\.\d{2})?)\s*₪/);
+    if (ilsMatch) {
+        const cleanPrice = ilsMatch[0].replace(/[^\d.,]/g, '');
         return { price: cleanPrice, currency: "ILS", source: "regex" };
+    }
+
+    // 5. Regex: USD / $
+    const usdMatch = html.match(/\$\s*([\d,]+(?:\.\d{2})?)|(?:USD)\s*([\d,]+(?:\.\d{2})?)/i);
+    if (usdMatch) {
+        const cleanPrice = (usdMatch[1] || usdMatch[2]).replace(/,/g, '');
+        return { price: cleanPrice, currency: "USD", source: "regex" };
+    }
+
+    // 6. Regex: EUR / €
+    const eurMatch = html.match(/€\s*([\d,]+(?:\.\d{2})?)|(?:EUR)\s*([\d,]+(?:\.\d{2})?)/i);
+    if (eurMatch) {
+        const cleanPrice = (eurMatch[1] || eurMatch[2]).replace(/,/g, '');
+        return { price: cleanPrice, currency: "EUR", source: "regex" };
+    }
+
+    // 7. Regex: GBP / £
+    const gbpMatch = html.match(/£\s*([\d,]+(?:\.\d{2})?)|(?:GBP)\s*([\d,]+(?:\.\d{2})?)/i);
+    if (gbpMatch) {
+        const cleanPrice = (gbpMatch[1] || gbpMatch[2]).replace(/,/g, '');
+        return { price: cleanPrice, currency: "GBP", source: "regex" };
     }
 
     return { price: null, currency: null, source: "none" };
 }
 
+const CURRENCY_SYMBOLS: Record<string, string> = {
+    ILS: "₪",
+    USD: "$",
+    EUR: "€",
+    GBP: "£",
+    JPY: "¥",
+    CAD: "CA$",
+    AUD: "A$",
+};
+
 function findPriceInObject(obj: any, depth = 0): { price: string; currency: string } | null {
     if (depth > 10) return null;
     if (!obj || typeof obj !== "object") return null;
 
-    if (obj["@type"] === "Offer" || obj["@type"] === "Product") {
-        if (obj.price || obj.offers?.price) {
+    const type = obj["@type"];
+
+    // Direct Offer or Product with price
+    if (type === "Offer" || type === "Product") {
+        const directPrice = obj.price;
+        if (directPrice !== undefined && directPrice !== null && directPrice !== "") {
             return {
-                price: String(obj.price || obj.offers?.price),
-                currency: obj.priceCurrency || obj.offers?.priceCurrency || "ILS"
+                price: String(directPrice),
+                currency: obj.priceCurrency || "ILS"
             };
         }
     }
 
+    // Product with offers array or single offer
+    if (type === "Product" && obj.offers) {
+        const offers = Array.isArray(obj.offers) ? obj.offers : [obj.offers];
+        for (const offer of offers) {
+            if (offer && (offer.price !== undefined) && offer.price !== "") {
+                return {
+                    price: String(offer.price),
+                    currency: offer.priceCurrency || "ILS"
+                };
+            }
+            // priceSpecification inside offer
+            if (offer?.priceSpecification) {
+                const spec = Array.isArray(offer.priceSpecification)
+                    ? offer.priceSpecification[0]
+                    : offer.priceSpecification;
+                if (spec?.price) {
+                    return { price: String(spec.price), currency: spec.priceCurrency || "ILS" };
+                }
+            }
+        }
+    }
+
+    // Recurse into arrays and objects
     if (Array.isArray(obj)) {
         for (const item of obj) {
             const result = findPriceInObject(item, depth + 1);
@@ -170,10 +304,15 @@ function findPriceInObject(obj: any, depth = 0): { price: string; currency: stri
 
 function normalizePrice(price: string, currency: string | null): string {
     if (!price) return "";
-    let cleaned = price.replace(/,/g, '');
+    const cleaned = price.replace(/,/g, '').trim();
     const num = parseFloat(cleaned);
     if (isNaN(num)) return price;
-    return `${num.toFixed(2)} ${currency || "₪"}`;
+    const sym = CURRENCY_SYMBOLS[currency || "ILS"] || (currency || "₪");
+    // Put symbol before for $, €, £, after for ₪
+    if (currency === "ILS" || !currency) {
+        return `${num % 1 === 0 ? num : num.toFixed(2)}₪`;
+    }
+    return `${sym}${num % 1 === 0 ? num : num.toFixed(2)}`;
 }
 
 // ============================================================================
@@ -191,12 +330,83 @@ function requiresPremiumScraper(url: string): boolean {
     return PREMIUM_REQUIRED_DOMAINS.some(domain => lowerUrl.includes(domain));
 }
 
+// ============================================================================
+// TIER 0: Shopify Native API (free, reliable, no scraping needed)
+// ============================================================================
+
+/**
+ * Detects if a URL is a Shopify product page and returns product data
+ * directly from the Shopify JSON API — no scraping, no bot detection, exact prices.
+ */
+async function tier0Shopify(url: string): Promise<ScrapedResult | null> {
+    // Must contain /products/ to be a product page
+    const handleMatch = url.match(/\/products\/([a-zA-Z0-9][a-zA-Z0-9\-_]*)/);
+    if (!handleMatch) return null;
+
+    const handle = handleMatch[1];
+    let baseUrl: string;
+    try {
+        const u = new URL(url);
+        baseUrl = `${u.protocol}//${u.hostname}`;
+    } catch {
+        return null;
+    }
+
+    const apiUrl = `${baseUrl}/products/${handle}.json`;
+    console.log("[Tier 0] Trying Shopify API:", apiUrl);
+
+    try {
+        const response = await axios.get(apiUrl, {
+            timeout: 8000,
+            headers: {
+                'Accept': 'application/json',
+                'User-Agent': 'Mozilla/5.0 (compatible; WishU/1.0)',
+            }
+        });
+
+        const product = response.data?.product;
+        if (!product?.title) {
+            console.log("[Tier 0] Not a Shopify store or no product found");
+            return null;
+        }
+
+        // Pick the first available variant price
+        const variant = product.variants?.[0];
+        const rawPrice = variant?.price || "";
+        const image = product.images?.[0]?.src || "";
+
+        // Strip HTML from body_html for description
+        const description = (product.body_html || "")
+            .replace(/<[^>]*>/g, " ")
+            .replace(/\s+/g, " ")
+            .trim()
+            .substring(0, 300);
+
+        const price = rawPrice ? normalizePrice(rawPrice, "ILS") : "";
+
+        console.log("[Tier 0] Shopify success! Title:", product.title.substring(0, 50), "Price:", price);
+        return {
+            title: product.title,
+            description,
+            image,
+            price,
+            currency: "ILS",
+            priceSource: "api",
+            _debug: { tier: 0, source: "shopify-api" }
+        };
+    } catch (error) {
+        // 404 = not Shopify or product doesn't exist, silently fail
+        console.log("[Tier 0] Shopify API failed:", axios.isAxiosError(error) ? error.response?.status || error.message : "unknown");
+        return null;
+    }
+}
+
 // Tier 1: Direct fetch with browser-like headers
 async function tier1DirectFetch(url: string): Promise<ScrapedResult | null> {
     console.log("[Tier 1] Attempting direct fetch for:", url);
     try {
         const response = await axios.get(url, {
-            timeout: 10000,
+            timeout: 8000,
             headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
                 'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
@@ -253,7 +463,7 @@ async function tier2Microlink(url: string): Promise<ScrapedResult | null> {
     try {
         const response = await axios.get('https://api.microlink.io', {
             params: { url, palette: false, audio: false, video: false },
-            timeout: 15000,
+            timeout: 12000,
         });
 
         const data = response.data?.data;
@@ -297,8 +507,7 @@ async function tier3ScrapingBee(url: string, apiKey: string): Promise<ScrapedRes
         premium_proxy: "true",
         stealth_proxy: "true",
         country_code: "il",
-        wait: "5000",
-        wait_browser: "networkidle0",
+        wait: "3000",           // Fixed 3s wait instead of networkidle0 (much faster)
         window_width: "1920",
         window_height: "1080",
         device: "desktop",
@@ -310,7 +519,7 @@ async function tier3ScrapingBee(url: string, apiKey: string): Promise<ScrapedRes
     try {
         const response = await axios.get(SCRAPINGBEE_API_URL, {
             params,
-            timeout: 55000,
+            timeout: 35000,     // 35s — leaves headroom within the 120s function budget
         });
 
         const html = response.data;
@@ -358,7 +567,7 @@ async function tier3ScrapingBee(url: string, apiKey: string): Promise<ScrapedRes
 // FUNCTIONS
 // ============================================================================
 
-console.log("MODULE_LOADED: functions/src/index.ts VERSION 4 (HYBRID SCRAPER)");
+console.log("MODULE_LOADED: functions/src/index.ts VERSION 5 (SHOPIFY API + HYBRID SCRAPER)");
 
 /**
  * V1 Function: Scrape Product Details (Tiered)
@@ -399,6 +608,14 @@ export const scrapeProductDetails = functions
         console.log(`Processing URL: ${cleanedUrl}`);
 
         let result: ScrapedResult | null = null;
+
+        // ── Tier 0: Shopify native API (fastest, most accurate, no bot risk) ──
+        result = await tier0Shopify(cleanedUrl);
+        if (result) {
+            console.log("Tier 0 (Shopify API) succeeded — skipping scraping");
+            res.status(200).send(result);
+            return;
+        }
 
         // Check if this domain requires premium scraper for everything
         const needsPremium = requiresPremiumScraper(cleanedUrl);

@@ -1,8 +1,9 @@
-import { Search, ArrowLeft } from 'lucide-react';
+import { Search, ArrowLeft, ArrowRight } from 'lucide-react';
 import { useSearch } from '../../context/SearchContext';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { useHeader } from '../../context/HeaderContext';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 interface GlobalHeaderProps {
     onSearch?: (query: string) => void;
@@ -13,25 +14,30 @@ export const GlobalHeader = ({ onSearch, onOpenGreeting = () => { } }: GlobalHea
     const { searchQuery, setSearchQuery } = useSearch();
     const { headerState } = useHeader();
     const navigate = useNavigate();
+    const { t, i18n } = useTranslation();
+    const isRTL = i18n.dir() === 'rtl';
 
     const handleSearchChange = (val: string) => {
         setSearchQuery(val);
         onSearch?.(val);
     };
 
+    // Back arrow flips in RTL: going "back" is visually to the right
+    const BackArrow = isRTL ? ArrowRight : ArrowLeft;
+
     return (
         <header className="bg-white px-6 pt-[5px] pb-[10px] sticky top-0 z-50">
             <div className="flex flex-col gap-1">
                 {/* Top Row: Back - Logo - Bell */}
                 <div className="flex items-center justify-between mb-1">
-                    {/* Left: Back Button or Spacer */}
+                    {/* Leading: Back Button or Spacer (start of reading direction) */}
                     <div className="w-10 flex justify-start">
                         {headerState.showBackButton ? (
                             <button
                                 onClick={() => navigate(-1)}
                                 className="p-2 text-primary bg-secondary/20 rounded-full hover:bg-secondary/30 transition-colors"
                             >
-                                <ArrowLeft size={20} />
+                                <BackArrow size={20} />
                             </button>
                         ) : (
                             <div className="w-10" />
@@ -47,7 +53,7 @@ export const GlobalHeader = ({ onSearch, onOpenGreeting = () => { } }: GlobalHea
                         />
                     </div>
 
-                    {/* Right: Notification Bell */}
+                    {/* Trailing: Notification Bell */}
                     <div className="w-10 flex justify-end">
                         <NotificationBell onOpenGreeting={onOpenGreeting} />
                     </div>
@@ -68,15 +74,18 @@ export const GlobalHeader = ({ onSearch, onOpenGreeting = () => { } }: GlobalHea
                     {headerState.customBottomBar ? (
                         headerState.customBottomBar
                     ) : (
-                        // Default Search Bar
+                        // Default Search Bar — icon and padding flip in RTL
                         <div className="relative w-full">
-                            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" size={20} />
+                            <Search
+                                className={`absolute top-1/2 -translate-y-1/2 text-primary ${isRTL ? 'right-4' : 'left-4'}`}
+                                size={20}
+                            />
                             <input
                                 type="text"
                                 value={searchQuery}
-                                placeholder=""
+                                placeholder={t('search_placeholder')}
                                 onChange={(e) => handleSearchChange(e.target.value)}
-                                className="w-full bg-secondary text-primary font-medium rounded-full py-3.5 pl-12 pr-6 outline-none border-none placeholder-primary/60 focus:ring-2 focus:ring-primary/20 shadow-sm"
+                                className={`w-full bg-secondary text-primary font-medium rounded-full py-3.5 outline-none border-none placeholder-primary/60 focus:ring-2 focus:ring-primary/20 shadow-sm ${isRTL ? 'pr-12 pl-6' : 'pl-12 pr-6'}`}
                             />
                         </div>
                     )}

@@ -152,7 +152,10 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
         return () => {
             unsubscribeMessage();
         };
-    }, [user]);
+        // Depend on user?.uid (not the full user object) — Firebase Auth emits two state
+        // changes on login with different object references but the same UID, which caused
+        // setupMessagingToken to run twice and save the FCM token to Firestore twice.
+    }, [user?.uid]);
 
     const markAsRead = async (notificationId: string) => {
         try {

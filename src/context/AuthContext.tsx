@@ -46,23 +46,17 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const signInWithGoogle = async () => {
         try {
-            // Robust mobile detection (including iPadOS 13+ which pretends to be Mac)
-            const ua = navigator.userAgent;
-            const isTouch = navigator.maxTouchPoints > 0;
-            const isMobileUA = /iPhone|iPad|iPod|Android/i.test(ua);
-            const isIpadOS = (navigator.platform === 'MacIntel' && isTouch);
-            const isMobile = isMobileUA || isIpadOS;
-
-            if (isMobile) {
-                // Use Redirect for mobile to avoid popup blockers and webview limits
-                await signInWithRedirect(auth, googleProvider);
-            } else {
-                await signInWithPopup(auth, googleProvider);
-            }
+            // Use popup everywhere — Chrome on Android (S22/S23) and Samsung Internet both
+            // allow popups triggered by a direct user gesture (button tap).
+            // signInWithRedirect is broken on Chrome 115+ (Android 12/13) due to Storage
+            // Partitioning: the OAuth state saved before the redirect is cleared by the
+            // browser before the app regains control, so getRedirectResult() returns null
+            // and the user is silently stuck on the login screen.
+            await signInWithPopup(auth, googleProvider);
         } catch (error: any) {
-            console.error("Google verify failed", error);
-            // If popup is blocked on desktop, fallback to redirect might be a good idea,
-            // but for now we just handle the mobile requirement.
+            console.error("Google sign-in failed", error);
+            // Only fall back to redirect if the popup was explicitly blocked by the browser
+            // (e.g. WebView environments that disallow popups entirely).
             if (error?.code === 'auth/popup-blocked') {
                 await signInWithRedirect(auth, googleProvider);
             } else {
@@ -78,63 +72,64 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     };
 
     useEffect(() => {
-        // Handle redirect result (for mobile flows)
-        getRedirectResult(auth)
-            .then((result) => {
+        let profileUnsubscribe: (() => void) | null = null;
+        let authUnsubscribe: (() => void) | null = null;
+
+        // Await getRedirectResult BEFORE setting up onAuthStateChanged.
+        // Previously these ran concurrently: onAuthStateChanged would fire with null
+        // and set loading=false before the redirect credential was processed, causing
+        // a flash of the login screen (or a permanent stuck state if the redirect failed).
+        (async () => {
+            try {
+                const result = await getRedirectResult(auth);
                 if (result) {
                     console.log("Redirect login successful:", result.user.uid);
-                    // The onAuthStateChanged listener will handle state updates,
-                    // but we can log here for debugging.
                 }
-            })
-            .catch((error) => {
+            } catch (error: any) {
                 console.error("Auth redirect error:", error);
-                if (error.code === 'auth/account-exists-with-different-credential') {
-                    // Handle linking if needed, or show specific error
+            }
+
+            // Set up the ongoing auth state listener only after redirect is resolved
+            authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+                console.log("AuthContext: State changed", currentUser?.uid);
+                setUser(currentUser);
+
+                // Clean up previous profile listener
+                if (profileUnsubscribe) {
+                    profileUnsubscribe();
+                    profileUnsubscribe = null;
                 }
+
+                if (currentUser) {
+                    // Real-time listener for user profile
+                    profileUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
+                        if (docSnap.exists()) {
+                            setUserProfile(docSnap.data() as UserProfile);
+                        } else {
+                            // Create basic profile if it doesn't exist
+                            const newProfile = {
+                                displayName: currentUser.displayName,
+                                email: currentUser.email,
+                                photoURL: currentUser.photoURL,
+                                createdAt: new Date().toISOString()
+                            };
+                            setDoc(doc(db, 'users', currentUser.uid), newProfile, { merge: true });
+                            setUserProfile(newProfile);
+                        }
+                    }, (err) => {
+                        console.error("AuthContext: Profile sync error", err);
+                    });
+                } else {
+                    setUserProfile(null);
+                }
+
+                setLoading(false);
             });
-
-        let profileUnsubscribe: (() => void) | null = null;
-
-        const authUnsubscribe = onAuthStateChanged(auth, async (currentUser) => {
-            console.log("AuthContext: State changed", currentUser?.uid);
-            setUser(currentUser);
-
-            // Clean up previous profile listener
-            if (profileUnsubscribe) {
-                profileUnsubscribe();
-                profileUnsubscribe = null;
-            }
-
-            if (currentUser) {
-                // Real-time listener for user profile
-                profileUnsubscribe = onSnapshot(doc(db, 'users', currentUser.uid), (docSnap) => {
-                    if (docSnap.exists()) {
-                        setUserProfile(docSnap.data() as UserProfile);
-                    } else {
-                        // Create basic profile if it doesn't exist
-                        const newProfile = {
-                            displayName: currentUser.displayName,
-                            email: currentUser.email,
-                            photoURL: currentUser.photoURL,
-                            createdAt: new Date().toISOString()
-                        };
-                        setDoc(doc(db, 'users', currentUser.uid), newProfile, { merge: true });
-                        setUserProfile(newProfile);
-                    }
-                }, (err) => {
-                    console.error("AuthContext: Profile sync error", err);
-                });
-            } else {
-                setUserProfile(null);
-            }
-
-            setLoading(false);
-        });
+        })();
 
         // Cleanup function
         return () => {
-            authUnsubscribe();
+            if (authUnsubscribe) authUnsubscribe();
             if (profileUnsubscribe) profileUnsubscribe();
         };
     }, []);

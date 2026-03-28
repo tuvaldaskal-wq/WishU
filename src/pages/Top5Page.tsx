@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-
+import { useTranslation } from 'react-i18next';
 
 import { doc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -12,6 +12,7 @@ import { motion } from 'framer-motion';
 
 // --- Sortable Item Component ---
 const SortableItem = ({ id, gift, index, onRemove }: any) => {
+    const { t } = useTranslation();
     const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id });
     const style = {
         transform: CSS.Transform.toString(transform),
@@ -27,7 +28,7 @@ const SortableItem = ({ id, gift, index, onRemove }: any) => {
                 {index < 3 ? <Trophy size={14} /> : index + 1}
             </div>
             <div className="flex-1 min-w-0">
-                <p className="font-medium text-darkbg truncate">{gift?.title || 'Unknown Gift'}</p>
+                <p className="font-medium text-darkbg truncate">{gift?.title || t('unknown_gift')}</p>
             </div>
             <button onClick={() => onRemove(id)} className="p-2 text-slate-300 hover:text-red-400">
                 <X size={18} />
@@ -38,7 +39,7 @@ const SortableItem = ({ id, gift, index, onRemove }: any) => {
 
 // --- Main Page Component ---
 export const Top5Page = () => {
-    // const { t } = useTranslation();
+    const { t } = useTranslation();
     const { user, userProfile } = useAuth() as any;
 
     const [allGifts, setAllGifts] = useState<any[]>([]);
@@ -99,7 +100,7 @@ export const Top5Page = () => {
 
     const addToTop5 = (giftId: string) => {
         if (top5Ids.length >= 5) {
-            alert("You can only have 5 top wishes! Remove one first.");
+            alert(t('max_top5_reached'));
             return;
         }
         if (top5Ids.includes(giftId)) return;
@@ -124,16 +125,16 @@ export const Top5Page = () => {
             <header className="bg-darkbg text-white px-6 pt-12 pb-8 rounded-b-3xl shadow-xl mb-6">
                 <div className="flex items-center gap-3 mb-2">
                     <Trophy className="text-yellow-400" size={24} />
-                    <h1 className="text-2xl font-bold tracking-tight">Top 5 Wishes</h1>
+                    <h1 className="text-2xl font-bold tracking-tight">{t('top5_title')}</h1>
                 </div>
-                <p className="text-slate-400 text-sm">Rank your most wanted gifts for your partner to see.</p>
+                <p className="text-slate-400 text-sm">{t('top5_page_subtitle')}</p>
             </header>
 
             <main className="px-6 space-y-6">
                 {/* Ranking Zone */}
                 <section>
                     <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3 flex justify-between">
-                        <span>Your Top 5 ({top5Ids.length}/5)</span>
+                        <span>{t('top5_section_title')} ({top5Ids.length}/5)</span>
                     </h2>
 
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
@@ -145,7 +146,7 @@ export const Top5Page = () => {
                                 {top5Ids.length === 0 && (
                                     <div className="p-8 border-2 border-dashed border-slate-200 rounded-2xl flex flex-col items-center justify-center text-slate-400">
                                         <Star size={32} className="mb-2 opacity-20" />
-                                        <p className="text-sm">Drag or add gifts here</p>
+                                        <p className="text-sm">{t('top5_drag_hint')}</p>
                                     </div>
                                 )}
                             </div>
@@ -155,12 +156,12 @@ export const Top5Page = () => {
 
                 {/* Available Gifts */}
                 <section>
-                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">Add from Wishlist</h2>
+                    <h2 className="text-sm font-bold text-slate-400 uppercase tracking-wider mb-3">{t('add_from_wishlist')}</h2>
                     <div className="relative mb-4">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-300" size={16} />
                         <input
                             type="text"
-                            placeholder="Search gifts..."
+                            placeholder={t('placeholder_search_gifts')}
                             value={searchTerm}
                             onChange={e => setSearchTerm(e.target.value)}
                             className="w-full bg-white pl-9 pr-4 py-3 rounded-xl border border-slate-100 text-sm focus:outline-none focus:ring-2 focus:ring-primary/20"
@@ -186,7 +187,7 @@ export const Top5Page = () => {
                             </motion.div>
                         ))}
                         {availableGifts.length === 0 && searchTerm && (
-                            <p className="text-center text-slate-400 text-sm py-4">No gifts found.</p>
+                            <p className="text-center text-slate-400 text-sm py-4">{t('no_gifts_found')}</p>
                         )}
                     </div>
                 </section>

@@ -91,7 +91,7 @@ export const HeroSection = ({ dates, partnerName, message }: HeroSectionProps) =
                         {message || t('no_upcoming_events')}
                     </h1>
                     <p className="text-slate-400 text-sm max-w-sm mt-2">
-                        Check out the wishlist below to find the perfect gift! 🎁
+                        {t('check_wishlist')}
                     </p>
                 </div>
             </div>
@@ -110,7 +110,7 @@ export const HeroSection = ({ dates, partnerName, message }: HeroSectionProps) =
                 <div>
                     <h2 className="text-slate-400 text-sm font-medium uppercase tracking-wider mb-2 flex items-center gap-2">
                         {isToday ? <PartyPopper className="text-primary" size={16} /> : <Calendar className="text-primary" size={16} />}
-                        {isToday ? t('event_today') : `${t('upcoming_event') || 'Upcoming Event'}`}
+                        {isToday ? t('event_today') : t('upcoming_event')}
                     </h2>
                     <h1 className="text-3xl md:text-4xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-white to-slate-300 mb-2">
                         {nearestEvent.title}

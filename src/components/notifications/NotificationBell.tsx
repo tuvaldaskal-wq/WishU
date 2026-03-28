@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Bell, X, Mail, Cake, ArrowRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications, Notification } from '../../context/NotificationContext';
@@ -9,6 +10,7 @@ interface NotificationBellProps {
 }
 
 export const NotificationBell = ({ onOpenGreeting }: NotificationBellProps) => {
+    const { t } = useTranslation();
     const [isOpen, setIsOpen] = useState(false);
     const { notifications, unreadCount, markAsRead, loading } = useNotifications();
     const navigate = useNavigate();
@@ -76,7 +78,7 @@ export const NotificationBell = ({ onOpenGreeting }: NotificationBellProps) => {
                             className="absolute right-0 top-full mt-2 w-[320px] sm:w-[380px] bg-white rounded-3xl shadow-2xl border border-slate-100 z-[70] overflow-hidden flex flex-col max-h-[500px]"
                         >
                             <div className="p-4 border-b border-slate-50 flex items-center justify-between bg-white sticky top-0 z-10">
-                                <h3 className="font-bold text-darkbg">Notifications</h3>
+                                <h3 className="font-bold text-darkbg">{t('notifications')}</h3>
                                 <button onClick={() => setIsOpen(false)} className="p-1 text-slate-400">
                                     <X size={18} />
                                 </button>
@@ -94,7 +96,7 @@ export const NotificationBell = ({ onOpenGreeting }: NotificationBellProps) => {
                                         <div className="w-12 h-12 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-3 text-slate-300">
                                             <Bell size={24} />
                                         </div>
-                                        <p className="text-sm text-slate-400">No notifications yet</p>
+                                        <p className="text-sm text-slate-400">{t('no_notifications')}</p>
                                     </div>
                                 )}
 
@@ -132,7 +134,7 @@ export const NotificationBell = ({ onOpenGreeting }: NotificationBellProps) => {
                                         onClick={() => setIsOpen(false)}
                                         className="text-xs text-slate-500 font-bold hover:text-primary"
                                     >
-                                        Close
+                                        {t('close')}
                                     </button>
                                 </div>
                             )}

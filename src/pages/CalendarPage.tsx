@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Calendar as CalendarIcon, Mail, Loader2 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
@@ -23,6 +24,7 @@ interface CalendarEvent {
 
 const CalendarPage = () => {
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { user } = useAuth();
     const { searchQuery } = useSearch();
 
@@ -177,10 +179,10 @@ const CalendarPage = () => {
                         <div className="w-16 h-16 bg-slate-50 rounded-full flex items-center justify-center mx-auto mb-4 text-slate-300">
                             <CalendarIcon size={32} />
                         </div>
-                        <p className="text-slate-500 font-medium mb-1">No upcoming events found.</p>
-                        <p className="text-xs text-slate-400 mb-4">Add friends or ask them to set their birthday!</p>
+                        <p className="text-slate-500 font-medium mb-1">{t('no_events_found')}</p>
+                        <p className="text-xs text-slate-400 mb-4">{t('no_upcoming_events_hint')}</p>
                         <button onClick={() => navigate('/friends')} className="bg-darkbg text-white px-4 py-2 rounded-xl text-sm font-bold">
-                            Find Friends
+                            {t('find_friends')}
                         </button>
                     </div>
                 ) : (
@@ -202,7 +204,7 @@ const CalendarPage = () => {
                             </div>
                             <div className="text-center min-w-[50px]">
                                 <span className="block text-xl font-bold text-primary">{event.daysLeft}</span>
-                                <span className="text-[10px] text-slate-400 uppercase font-medium">Days</span>
+                                <span className="text-[10px] text-slate-400 uppercase font-medium">{t('days')}</span>
                             </div>
                             <button
                                 onClick={(e) => {

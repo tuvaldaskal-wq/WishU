@@ -117,7 +117,7 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
             onClose();
         } catch (err) {
             console.error("Failed to update gift", err);
-            alert("Error updating gift");
+            alert(t('error_updating_gift'));
         } finally {
             setLoading(false);
         }
@@ -132,7 +132,7 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
             onClose();
         } catch (err) {
             console.error("Failed to delete gift", err);
-            alert("Error deleting gift");
+            alert(t('error_deleting_gift'));
             setLoading(false);
         }
     };
@@ -166,7 +166,7 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
                     <X size={20} />
                 </button>
 
-                <h2 className="text-2xl font-bold text-darkbg mb-6">Edit Gift</h2>
+                <h2 className="text-2xl font-bold text-darkbg mb-6">{t('edit_gift')}</h2>
 
                 <div className="space-y-5">
                     {/* Link Section */}
@@ -176,7 +176,7 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
                                 value={link}
                                 onChange={(e) => setLink(e.target.value)}
                                 placeholder={t('paste_link')}
-                                label="Link"
+                                label={t('link')}
                                 className="pl-10"
                             />
                             <div className="absolute left-3 top-[38px] text-slate-400">
@@ -237,7 +237,7 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
                                     className="mt-1 text-xs text-primary font-medium flex items-center gap-1"
                                 >
                                     <Upload size={12} />
-                                    Upload image
+                                    {t('upload_image')}
                                 </button>
                             )}
                         </div>
@@ -246,8 +246,8 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
                     <Input
                         value={title}
                         onChange={(e) => setTitle(e.target.value)}
-                        placeholder="Gift Title"
-                        label="Title"
+                        placeholder={t('gift_title')}
+                        label={t('gift_title')}
                     />
 
                     {/* Price with Validation */}
@@ -261,21 +261,21 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
                                     setPriceError(false);
                                 }
                             }}
-                            placeholder="Price (e.g. 100₪)"
-                            label="Price *"
+                            placeholder={t('price') + ' (e.g. 100₪)'}
+                            label={t('price') + ' *'}
                             className={isPriceInvalid ? 'border-red-500 focus:ring-red-500' : ''}
                         />
                         {isPriceInvalid && (
                             <p className="text-red-500 text-xs mt-1 flex items-center gap-1">
                                 <AlertCircle size={12} />
-                                Price is required
+                                {t('price_required')}
                             </p>
                         )}
                     </div>
 
                     {/* Visibility */}
                     <div className="p-4 bg-white rounded-2xl border border-slate-100">
-                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Who can see this?</label>
+                        <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('who_can_see')}</label>
                         <div className="flex flex-wrap gap-2">
                             {['Friends', 'Family', 'Partner', 'Work', 'Other'].map(group => (
                                 <button
@@ -286,7 +286,7 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
                                         : 'bg-white text-slate-400 border-slate-200 hover:border-slate-300'
                                         }`}
                                 >
-                                    {group}
+                                    {t('group_' + group.toLowerCase())}
                                 </button>
                             ))}
                         </div>
@@ -307,7 +307,7 @@ export const EditGiftModal = ({ gift, onClose }: EditGiftModalProps) => {
                             className="flex-1 py-3 bg-primary text-white rounded-xl font-bold hover:brightness-110 active:scale-95 transition-all flex items-center justify-center gap-2"
                         >
                             {loading ? <Loader2 className="animate-spin" /> : <Save size={20} />}
-                            Save Changes
+                            {t('save_changes')}
                         </button>
                     </div>
                 </div>

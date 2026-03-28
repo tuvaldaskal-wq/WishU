@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { ShoppingCart, Heart, ArrowLeft, Loader2, ExternalLink } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -9,6 +10,7 @@ import { wrapAffiliateLink } from '../lib/utils';
 const GiftDetailPage = () => {
     const { id } = useParams();
     const navigate = useNavigate();
+    const { t } = useTranslation();
     const { user: _user } = useAuth();
     const [gift, setGift] = useState<any>(null);
     const [loading, setLoading] = useState(true);
@@ -41,8 +43,8 @@ const GiftDetailPage = () => {
     if (!gift) {
         return (
             <div className="text-center py-20 px-6">
-                <h2 className="text-xl font-bold text-slate-800 mb-2">Gift Not Found</h2>
-                <button onClick={() => navigate(-1)} className="text-primary font-bold">Go Back</button>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">{t('error_gift_not_found')}</h2>
+                <button onClick={() => navigate(-1)} className="text-primary font-bold">{t('go_back')}</button>
             </div>
         );
     }
@@ -109,7 +111,7 @@ const GiftDetailPage = () => {
                         {/* Title & Price in Deep Navy #0C0C4F */}
                         <h1 className="text-3xl font-black text-[#0C0C4F] mb-1 leading-tight">{gift.title}</h1>
                         <p className="text-2xl font-black text-[#0C0C4F]">
-                            {gift.price || 'Priceless'}
+                            {gift.price || t('priceless')}
                         </p>
                     </div>
 
@@ -120,10 +122,8 @@ const GiftDetailPage = () => {
                         </p>
                     </div>
 
-                    {/* Meta Info */}
-                    <div className="pt-8 mb-10 flex flex-col items-center gap-2 opacity-10">
-                        <div className="text-[10px] text-slate-400 font-mono tracking-tighter uppercase font-bold">CODE: {gift.id.slice(0, 8)}</div>
-                    </div>
+                    {/* Spacing */}
+                    <div className="pt-8 mb-10" />
                 </div>
             </main>
 
@@ -135,7 +135,7 @@ const GiftDetailPage = () => {
                     rel="noopener noreferrer"
                     className="pointer-events-auto bg-[#0C0C4F] text-white px-10 py-5 rounded-full font-bold uppercase tracking-[0.2em] text-xs shadow-2xl hover:scale-105 active:scale-95 transition-all flex items-center gap-3"
                 >
-                    View in Store
+                    {t('view_in_store')}
                     <ExternalLink size={16} />
                 </a>
             </div>

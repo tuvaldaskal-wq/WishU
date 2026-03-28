@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
+import { motion } from 'framer-motion';
 import { User, Bell, Share2, LogOut, Camera, Copy, Check, Plus, X, Shield } from 'lucide-react';
 import { doc, updateDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
@@ -28,6 +29,19 @@ const ProfilePage = () => {
     });
     const [loading, setLoading] = useState(false);
     const [justCopied, setJustCopied] = useState(false);
+    const [langTransitioning, setLangTransitioning] = useState(false);
+
+    const switchLanguage = async (lang: string) => {
+        if ((i18n.resolvedLanguage ?? i18n.language) === lang) return;
+        setLangTransitioning(true);
+        // Wait for the white overlay to fully fade in before swapping language,
+        // so the RTL reflow and text change are invisible to the user.
+        await new Promise<void>(r => setTimeout(r, 200));
+        await i18n.changeLanguage(lang);
+        // Brief pause at white so the new layout settles before revealing.
+        await new Promise<void>(r => setTimeout(r, 60));
+        setLangTransitioning(false);
+    };
     const [photoUploading, setPhotoUploading] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
     // Date inputs state
@@ -70,7 +84,7 @@ const ProfilePage = () => {
             alert(t('profile_updated'));
         } catch (error) {
             console.error(error);
-            alert('Error updating profile');
+            alert(t('error_updating_profile'));
         } finally {
             setLoading(false);
         }
@@ -82,13 +96,13 @@ const ProfilePage = () => {
 
         // Validate file type
         if (!file.type.startsWith('image/')) {
-            alert('Please select an image file');
+            alert(t('error_select_image'));
             return;
         }
 
         // Validate file size (max 5MB)
         if (file.size > 5 * 1024 * 1024) {
-            alert('Image too large. Max 5MB allowed.');
+            alert(t('error_image_too_large'));
             return;
         }
 
@@ -106,10 +120,10 @@ const ProfilePage = () => {
                 photoURL: downloadURL
             });
 
-            alert('Profile photo updated!');
+            alert(t('success_photo_updated'));
         } catch (error) {
             console.error('Photo upload error:', error);
-            alert('Failed to upload photo. Please try again.');
+            alert(t('error_upload_photo'));
         } finally {
             setPhotoUploading(false);
         }
@@ -162,16 +176,16 @@ const ProfilePage = () => {
     };
 
     const firstReminderOptions = [
-        { label: '1 month before', value: '1month' },
-        { label: '2 weeks before', value: '2weeks' },
-        { label: '1 week before', value: '1week' },
-        { label: '3 days before', value: '3days' }
+        { label: t('reminder_1month'), value: '1month' },
+        { label: t('reminder_2weeks'), value: '2weeks' },
+        { label: t('reminder_1week'), value: '1week' },
+        { label: t('reminder_3days'), value: '3days' }
     ];
 
     const secondReminderOptions = [
-        { label: '1 day before', value: '1day' },
-        { label: 'On the day of', value: 'on-day' },
-        { label: 'None', value: 'none' }
+        { label: t('reminder_1day'), value: '1day' },
+        { label: t('reminder_on_day'), value: 'on-day' },
+        { label: t('reminder_none'), value: 'none' }
     ];
 
     return (
@@ -230,25 +244,31 @@ const ProfilePage = () => {
                     </div>
 
                     <div className="flex gap-2">
-                        <button
-                            onClick={() => i18n.changeLanguage('en')}
-                            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${i18n.language === 'en'
-                                ? 'bg-darkbg text-white shadow-md'
-                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                }`}
-                        >
-                            English
-                        </button>
-                        <button
-                            onClick={() => i18n.changeLanguage('he')}
-                            className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${i18n.language === 'he'
-                                ? 'bg-darkbg text-white shadow-md'
-                                : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
-                                }`}
-                        >
-                            עברית
-                        </button>
+                        {(['en', 'he'] as const).map((lang) => {
+                            const isActive = (i18n.resolvedLanguage ?? i18n.language) === lang;
+                            return (
+                                <motion.button
+                                    key={lang}
+                                    onClick={() => switchLanguage(lang)}
+                                    disabled={langTransitioning}
+                                    whileTap={!isActive ? { scale: 0.97 } : {}}
+                                    className={`flex-1 py-3 rounded-xl font-bold text-sm transition-all ${isActive
+                                        ? 'bg-darkbg text-white shadow-md'
+                                        : 'bg-slate-50 text-slate-500 hover:bg-slate-100'
+                                    }`}
+                                >
+                                    {lang === 'en' ? 'English' : 'עברית'}
+                                </motion.button>
+                            );
+                        })}
                     </div>
+
+                    {/* Full-screen white overlay that hides the RTL reflow during language switch */}
+                    <motion.div
+                        className="fixed inset-0 bg-white z-[9999] pointer-events-none"
+                        animate={{ opacity: langTransitioning ? 1 : 0 }}
+                        transition={{ duration: 0.18, ease: 'easeInOut' }}
+                    />
                 </div>
 
                 {/* Edit Details */}
@@ -278,7 +298,7 @@ const ProfilePage = () => {
                         </div>
 
                         <div className="pt-6 border-t border-slate-100 mt-6">
-                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Other Important Dates</label>
+                            <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">{t('section_other_dates')}</label>
 
                             <div className="space-y-3 mb-4">
                                 {localDates.map((date: any, index: number) => (
@@ -306,7 +326,7 @@ const ProfilePage = () => {
                             <div className="flex gap-2 items-end">
                                 <div className="flex-1 space-y-2">
                                     <input
-                                        placeholder="Title (e.g. Anniversary)"
+                                        placeholder={t('date_title_placeholder')}
                                         value={newDateTitle}
                                         onChange={(e) => setNewDateTitle(e.target.value)}
                                         className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
@@ -323,9 +343,9 @@ const ProfilePage = () => {
                                             onChange={(e) => setNewDateType(e.target.value)}
                                             className="bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-sm"
                                         >
-                                            <option value="birthday">Birthday</option>
-                                            <option value="anniversary">Anniversary</option>
-                                            <option value="other">Other</option>
+                                            <option value="birthday">{t('date_type_birthday')}</option>
+                                            <option value="anniversary">{t('date_type_anniversary')}</option>
+                                            <option value="other">{t('date_type_other')}</option>
                                         </select>
                                     </div>
                                 </div>
@@ -353,7 +373,7 @@ const ProfilePage = () => {
                                             importantDates: updatedDates
                                         });
 
-                                        alert(t('date_added') || "Date added! It will appear on your calendar.");
+                                        alert(t('success_date_added'));
                                     }}
                                     className="bg-darkbg text-white p-3 rounded-xl shadow-lg hover:bg-black transition-colors"
                                 >
@@ -362,7 +382,7 @@ const ProfilePage = () => {
                             </div>
                             {(newDateTitle || newDateVal) && (
                                 <p className="text-red-500 text-xs mt-2 font-bold animate-pulse">
-                                    Don't forget to click (+) to add this date!
+                                    {t('add_date_reminder', 'Don\'t forget to click (+) to add this date!')}
                                 </p>
                             )}
                         </div>
@@ -393,7 +413,7 @@ const ProfilePage = () => {
                 <section className="bg-white rounded-3xl p-6 shadow-sm border border-slate-100">
                     <h2 className="text-lg font-bold text-darkbg mb-6 flex items-center gap-2">
                         <Bell size={20} className="text-primary" />
-                        Notification Preferences
+                        {t('section_notification_prefs')}
                     </h2>
 
                     <div className="space-y-8">
@@ -403,7 +423,7 @@ const ProfilePage = () => {
                                 <div key={group} className="space-y-4 border-b border-slate-50 pb-6 last:border-0 last:pb-0">
                                     <div className="flex items-center justify-between">
                                         <h3 className="font-bold text-darkbg flex items-center gap-2">
-                                            {group}
+                                            {t('group_' + group.toLowerCase())}
                                         </h3>
                                         <button
                                             onClick={() => updatePreference(group, 'enabled', !pref.enabled)}
@@ -416,7 +436,7 @@ const ProfilePage = () => {
                                     {pref.enabled && (
                                         <div className="grid grid-cols-1 gap-4 mt-2">
                                             <div>
-                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">First Reminder</label>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t('first_reminder')}</label>
                                                 <select
                                                     value={pref.first}
                                                     onChange={(e) => updatePreference(group, 'first', e.target.value)}
@@ -428,7 +448,7 @@ const ProfilePage = () => {
                                                 </select>
                                             </div>
                                             <div>
-                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">Follow-up Reminder</label>
+                                                <label className="block text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1.5 ml-1">{t('followup_reminder')}</label>
                                                 <select
                                                     value={pref.second}
                                                     onChange={(e) => updatePreference(group, 'second', e.target.value)}
