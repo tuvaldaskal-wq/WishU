@@ -26,6 +26,9 @@ const ShareTargetPage = () => {
         const urlParam = searchParams.get('url');
         const textParam = searchParams.get('text');
         const titleParam = searchParams.get('title');
+        // Extra params from iOS Share Extension (extracted from live page DOM)
+        const priceParam = searchParams.get('price');
+        const imageParam = searchParams.get('image');
 
         // URL Extraction Logic
         let sharedUrl = urlParam;
@@ -53,7 +56,9 @@ const ShareTargetPage = () => {
                 state: {
                     openAddGift: true,
                     initialUrl: sharedUrl,
-                    initialTitle: titleParam || ''
+                    initialTitle: titleParam || '',
+                    initialPrice: priceParam || '',
+                    initialImage: imageParam || '',
                 }
             });
         } else {

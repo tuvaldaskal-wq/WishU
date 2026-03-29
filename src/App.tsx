@@ -1,5 +1,6 @@
 import { Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
+import { useDeepLink } from './hooks/useDeepLink'
 import { useTranslation } from 'react-i18next'
 import LandingPage from './pages/LandingPage'
 import MyWall from './pages/MyWall'
@@ -27,6 +28,9 @@ import { AdminRoute } from './components/admin/AdminRoute'
 function App() {
     const { user, loading } = useAuth();
     const { i18n } = useTranslation();
+
+    // Handle deep links from iOS Share Extension and Android share intent
+    useDeepLink();
 
     useEffect(() => {
         document.dir = i18n.dir();

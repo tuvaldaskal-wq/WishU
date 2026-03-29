@@ -1,0 +1,26 @@
+<!--
+    Additions to android/app/src/main/AndroidManifest.xml
+    after running: npx cap add android
+
+    Add the two intent-filters below INSIDE the existing <activity> tag
+    (the one with android:name="com.wishu.app.MainActivity").
+
+    These enable:
+    1. Custom URL scheme deep links  →  wishu://share-target?url=...
+    2. Android Share Sheet intent    →  user shares a URL to WishU from Chrome/browser
+-->
+
+<!-- 1. Custom URL scheme (Capacitor deep link) -->
+<intent-filter android:autoVerify="true">
+    <action android:name="android.intent.action.VIEW" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <category android:name="android.intent.category.BROWSABLE" />
+    <data android:scheme="wishu" />
+</intent-filter>
+
+<!-- 2. Receive URLs shared from Chrome / other apps -->
+<intent-filter>
+    <action android:name="android.intent.action.SEND" />
+    <category android:name="android.intent.category.DEFAULT" />
+    <data android:mimeType="text/plain" />
+</intent-filter>

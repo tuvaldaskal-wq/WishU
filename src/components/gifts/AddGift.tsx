@@ -7,20 +7,26 @@ import { fetchMetadata } from '../../lib/scraper';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 
 interface AddGiftProps {
     onClose: () => void;
     initialUrl?: string;
+    /** Pre-filled from iOS Share Extension DOM extraction */
+    initialPrice?: string;
+    /** Pre-filled from iOS Share Extension DOM extraction */
+    initialImage?: string;
 }
 
-export const AddGift = ({ onClose, initialUrl }: AddGiftProps) => {
+export const AddGift = ({ onClose, initialUrl, initialPrice, initialImage }: AddGiftProps) => {
     const { t } = useTranslation();
     const { user } = useAuth();
+    const { showToast } = useToast();
 
     const [link, setLink] = useState(initialUrl || '');
     const [title, setTitle] = useState('');
-    const [price, setPrice] = useState('');
-    const [image, setImage] = useState('');
+    const [price, setPrice] = useState(initialPrice || '');
+    const [image, setImage] = useState(initialImage || '');
     const [visibility, setVisibility] = useState<string[]>(['Friends', 'Family', 'Partner', 'Work', 'Other']);
 
     const [loading, setLoading] = useState(false);
@@ -154,7 +160,7 @@ export const AddGift = ({ onClose, initialUrl }: AddGiftProps) => {
             onClose();
         } catch (err) {
             console.error("Failed to add gift", err);
-            alert(t('error_adding_gift'));
+            showToast(t('error_adding_gift'), 'error');
         } finally {
             setLoading(false);
         }

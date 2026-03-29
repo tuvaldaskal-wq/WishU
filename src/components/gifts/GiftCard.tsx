@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { motion } from 'framer-motion';
 import { useTranslation } from 'react-i18next';
 import { ExternalLink, Check, Gift as GiftIcon, Trash2, Heart, Lock, ShoppingCart } from 'lucide-react';
@@ -5,6 +6,7 @@ import { doc, updateDoc, deleteDoc } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { wrapAffiliateLink } from '../../lib/utils';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import confetti from 'canvas-confetti';
 
 export interface Gift {
@@ -29,9 +31,10 @@ interface GiftCardProps {
     onEdit?: (gift: Gift) => void;
 }
 
-export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
+const GiftCardComponent = ({ gift, isOwner, onEdit }: GiftCardProps) => {
     const { t } = useTranslation();
     const { user } = useAuth();
+    const { showToast } = useToast();
 
     const toggleStatus = async () => {
         if (isOwner) return; // Owner can't purchase their own gift via this button
@@ -42,7 +45,7 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
         // RESTRICTION: If trying to UN-purchase, check ownership
         if (isCurrentlyPurchased) {
             if (gift.purchasedBy && gift.purchasedBy !== user.uid) {
-                alert(t('error_gift_purchased_by_other'));
+                showToast(t('error_gift_purchased_by_other'), 'error');
                 return;
             }
         }
@@ -50,12 +53,13 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
         const newStatus = isCurrentlyPurchased ? 'available' : 'purchased';
 
         if (newStatus === 'purchased') {
-            // Trigger celebration!
+            // Reduced particle count on mobile for performance
+            const isMobile = window.innerWidth < 768;
             confetti({
-                particleCount: 100,
+                particleCount: isMobile ? 60 : 100,
                 spread: 70,
                 origin: { y: 0.6 },
-                colors: ['#0F766E', '#F97316', '#FFFFFF'] // Teal, Orange, White
+                colors: ['#0F766E', '#F97316', '#FFFFFF']
             });
         }
 
@@ -142,13 +146,13 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
                     )}
                 </div>
 
-                {/* Actions Overlay (Buttons) */}
-                <div className="absolute inset-0 flex items-start justify-between p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                {/* Actions Overlay (Buttons) — min 44x44px touch targets */}
+                <div className="absolute inset-0 flex items-start justify-between p-2 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
                     {/* Favorite Button */}
                     {(isOwner || gift.isFavorite) && (
                         <button
                             onClick={toggleFavorite}
-                            className={`w-8 h-8 bg-white rounded-full flex items-center justify-center transition-all shadow-sm ${gift.isFavorite ? 'text-secondary' : 'text-slate-300 hover:text-secondary'}`}
+                            className={`w-10 h-10 bg-white rounded-full flex items-center justify-center transition-all shadow-sm ${gift.isFavorite ? 'text-secondary' : 'text-slate-300 hover:text-secondary'}`}
                             disabled={!isOwner}
                         >
                             <Heart size={16} fill={gift.isFavorite ? "currentColor" : "none"} />
@@ -161,18 +165,18 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
                             href={wrapAffiliateLink(gift.link)}
                             target="_blank"
                             rel="noopener noreferrer"
-                            className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-all shadow-sm"
+                            className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-slate-400 hover:text-primary transition-all shadow-sm"
                         >
-                            <ExternalLink size={14} />
+                            <ExternalLink size={15} />
                         </a>
 
                         {/* Delete Button (Owner Only) */}
                         {isOwner && (
                             <button
                                 onClick={handleDelete}
-                                className="w-8 h-8 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-danger hover:bg-red-50 transition-all shadow-sm"
+                                className="w-10 h-10 bg-white/90 backdrop-blur-sm rounded-full flex items-center justify-center text-danger hover:bg-red-50 transition-all shadow-sm"
                             >
-                                <Trash2 size={14} />
+                                <Trash2 size={15} />
                             </button>
                         )}
                     </div>
@@ -219,3 +223,5 @@ export const GiftCard = ({ gift, isOwner, onEdit }: GiftCardProps) => {
         </motion.div>
     );
 };
+
+export const GiftCard = memo(GiftCardComponent);

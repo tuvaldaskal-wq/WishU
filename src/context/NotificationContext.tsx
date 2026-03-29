@@ -35,13 +35,14 @@ const NotificationContext = createContext<NotificationContextType | undefined>(u
 export const NotificationProvider = ({ children }: { children: ReactNode }) => {
     const { user } = useAuth();
     const [notifications, setNotifications] = useState<Notification[]>([]);
-    const [unreadCount, setUnreadCount] = useState(0);
     const [loading, setLoading] = useState(true);
+
+    // Derived — no separate state needed
+    const unreadCount = notifications.filter(n => !n.read).length;
 
     useEffect(() => {
         if (!user) {
             setNotifications([]);
-            setUnreadCount(0);
             setLoading(false);
             return;
         }
@@ -65,7 +66,6 @@ export const NotificationProvider = ({ children }: { children: ReactNode }) => {
                 }) as Notification[];
 
             setNotifications(loadedNotifications);
-            setUnreadCount(loadedNotifications.filter(n => !n.read).length);
             setLoading(false);
         });
 

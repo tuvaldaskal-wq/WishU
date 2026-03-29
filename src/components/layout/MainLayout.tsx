@@ -15,6 +15,8 @@ interface LocationState {
     openAddGift?: boolean;
     initialUrl?: string;
     initialTitle?: string;
+    initialPrice?: string;
+    initialImage?: string;
 }
 export const MainLayout = () => {
     return (
@@ -33,6 +35,8 @@ export const MainLayout = () => {
 const MainLayoutContent = () => {
     const [showAddGift, setShowAddGift] = useState(false);
     const [sharedUrl, setSharedUrl] = useState('');
+    const [sharedPrice, setSharedPrice] = useState('');
+    const [sharedImage, setSharedImage] = useState('');
     const [openGreetingId, setOpenGreetingId] = useState<string | null>(null);
     const { editingGift, setEditingGift } = useModal();
     const location = useLocation();
@@ -44,6 +48,8 @@ const MainLayoutContent = () => {
         if (state?.openAddGift && state?.initialUrl) {
             console.log('MainLayout: Opening AddGift with shared URL:', state.initialUrl);
             setSharedUrl(state.initialUrl);
+            if (state.initialPrice) setSharedPrice(state.initialPrice);
+            if (state.initialImage) setSharedImage(state.initialImage);
             setShowAddGift(true);
             // Clear the state to prevent re-triggering on refresh
             navigate(location.pathname, { replace: true, state: {} });
@@ -52,7 +58,9 @@ const MainLayoutContent = () => {
 
     const handleCloseAddGift = () => {
         setShowAddGift(false);
-        setSharedUrl(''); // Clear the shared URL when closing
+        setSharedUrl('');
+        setSharedPrice('');
+        setSharedImage('');
     };
 
     return (
@@ -63,8 +71,8 @@ const MainLayoutContent = () => {
                 onOpenGreeting={setOpenGreetingId}
             />
 
-            {/* The Page Content */}
-            <div className="pb-24">
+            {/* The Page Content — pb-32 ensures nothing hides behind the fixed bottom nav + FAB */}
+            <div className="pb-32">
                 <Outlet />
             </div>
 
@@ -75,7 +83,14 @@ const MainLayoutContent = () => {
 
             {/* Global Add Gift Modal */}
             <AnimatePresence>
-                {showAddGift && <AddGift onClose={handleCloseAddGift} initialUrl={sharedUrl} />}
+                {showAddGift && (
+                    <AddGift
+                        onClose={handleCloseAddGift}
+                        initialUrl={sharedUrl}
+                        initialPrice={sharedPrice}
+                        initialImage={sharedImage}
+                    />
+                )}
             </AnimatePresence>
 
             {/* Global Edit Gift Modal (Fixed Stacking) */}

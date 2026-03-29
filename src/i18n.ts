@@ -225,7 +225,18 @@ i18n
                     reminder_3days: "3 days before",
                     reminder_1day: "1 day before",
                     reminder_on_day: "On the day of",
-                    reminder_none: "None"
+                    reminder_none: "None",
+
+                    // Landing page
+                    signing_in: "Signing in...",
+                    inapp_browser_title: "Open in your browser",
+                    inapp_browser_desc: "Google sign-in doesn't work inside Instagram, TikTok or WhatsApp. Tap the menu (⋯ or ⋮) and choose \"Open in Chrome\" or \"Open in Safari\".",
+
+                    // Bottom Nav
+                    nav_home: "Home",
+                    nav_friends: "Friends",
+                    nav_dates: "Dates",
+                    nav_profile: "Profile"
                 }
             },
             he: {
@@ -439,7 +450,18 @@ i18n
                     reminder_3days: "3 ימים לפני",
                     reminder_1day: "יום לפני",
                     reminder_on_day: "ביום עצמו",
-                    reminder_none: "ללא"
+                    reminder_none: "ללא",
+
+                    // Landing page
+                    signing_in: "מתחבר...",
+                    inapp_browser_title: "פתח בדפדפן שלך",
+                    inapp_browser_desc: "התחברות עם Google לא עובדת בתוך אינסטגרם, טיקטוק או וואטסאפ. לחץ על התפריט (⋯ או ⋮) ובחר \"פתח בכרום\" או \"פתח בסאפרי\".",
+
+                    // Bottom Nav
+                    nav_home: "בית",
+                    nav_friends: "חברים",
+                    nav_dates: "תאריכים",
+                    nav_profile: "פרופיל"
                 }
             }
         }

@@ -5,6 +5,7 @@ import { useState, useEffect } from 'react';
 import { collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
+import { useTranslation } from 'react-i18next';
 
 interface BottomNavProps {
     onAddClick?: () => void;
@@ -14,6 +15,7 @@ export const BottomNav = ({ onAddClick }: BottomNavProps) => {
     const location = useLocation();
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { t } = useTranslation();
     const path = location.pathname;
     const [pendingCount, setPendingCount] = useState(0);
 
@@ -47,20 +49,20 @@ export const BottomNav = ({ onAddClick }: BottomNavProps) => {
                 <div className="flex flex-1 justify-around items-center">
                     <NavIcon
                         icon={<Home size={24} strokeWidth={2.5} />}
-                        label="Home"
+                        label={t('nav_home')}
                         active={isActive('/dashboard')}
                         onClick={() => navigate('/dashboard')}
                     />
                     <div className="relative">
                         <NavIcon
                             icon={<Users size={24} strokeWidth={2.5} />}
-                            label="Friends"
+                            label={t('nav_friends')}
                             active={isActive('/friends')}
                             onClick={() => navigate('/friends')}
                         />
                         {pendingCount > 0 && (
-                            <div className="absolute top-1 -right-1 bg-secondary text-primary text-[10px] font-bold w-4 h-4 flex items-center justify-center rounded-full">
-                                {pendingCount}
+                            <div className="absolute top-1 -right-1 bg-secondary text-primary text-xs font-bold w-5 h-5 flex items-center justify-center rounded-full">
+                                {pendingCount > 9 ? '9+' : pendingCount}
                             </div>
                         )}
                     </div>
@@ -82,13 +84,13 @@ export const BottomNav = ({ onAddClick }: BottomNavProps) => {
                 <div className="flex flex-1 justify-around items-center">
                     <NavIcon
                         icon={<Calendar size={24} strokeWidth={2.5} />}
-                        label="Dates"
+                        label={t('nav_dates')}
                         active={isActive('/calendar')}
                         onClick={() => navigate('/calendar')}
                     />
                     <NavIcon
                         icon={<UserIcon size={24} strokeWidth={2.5} />}
-                        label="Profile"
+                        label={t('nav_profile')}
                         active={isActive('/profile')}
                         onClick={() => navigate('/profile')}
                     />
@@ -103,7 +105,7 @@ const NavIcon = ({ icon, active = false, onClick }: { icon: React.ReactNode; lab
         whileHover={{ scale: 1.1 }}
         whileTap={{ scale: 0.9 }}
         onClick={onClick}
-        className={`p-2 transition-all duration-300 relative group flex flex-col items-center justify-center ${active ? 'text-white' : 'text-white/80 hover:text-white'}`}
+        className={`p-3 min-w-[44px] min-h-[44px] transition-all duration-300 relative group flex flex-col items-center justify-center ${active ? 'text-white' : 'text-white/80 hover:text-white'}`}
     >
         {active ? (
             <div className="flex flex-col items-center">
