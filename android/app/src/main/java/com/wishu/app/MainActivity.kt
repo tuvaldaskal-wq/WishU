@@ -8,46 +8,43 @@ import com.getcapacitor.BridgeActivity
 class MainActivity : BridgeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
+        // Convert a cold-start share intent BEFORE super.onCreate so the bridge
+        // sees a clean ACTION_VIEW deep-link intent from the very first frame.
+        intent = convertShareToDeepLink(intent) ?: intent
         super.onCreate(savedInstanceState)
-        // Handle cold-start share intent (app was closed when share was triggered)
-        handleShareIntent(intent)
     }
 
     override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        // Handle warm-start share intent (app was already running)
-        handleShareIntent(intent)
+        // Convert a warm-start share intent, then let the bridge handle the
+        // resulting ACTION_VIEW intent — the App plugin fires 'appUrlOpen' for us.
+        val processedIntent = convertShareToDeepLink(intent) ?: intent
+        super.onNewIntent(processedIntent)
     }
 
     /**
-     * Converts an Android ACTION_SEND intent (from Chrome / any browser share sheet)
-     * into a wishu:// deep link and fires it through Capacitor's bridge.
+     * If the given intent is an ACTION_SEND text/plain share, converts it into
+     * an ACTION_VIEW intent pointing at wishu://share-target?url=...&title=...
      *
-     * The web layer picks this up via the App.addListener('appUrlOpen', ...) call
-     * in src/hooks/useDeepLink.ts, which navigates to /share-target?url=...
-     * and ultimately opens AddGift with the URL pre-filled.
+     * Capacitor's App plugin handles ACTION_VIEW intents natively and fires the
+     * 'appUrlOpen' event that src/hooks/useDeepLink.ts listens for.
+     *
+     * Returns null if the intent is not a share or has no extractable URL.
      */
-    private fun handleShareIntent(intent: Intent?) {
-        if (intent?.action != Intent.ACTION_SEND) return
-        if (intent.type != "text/plain") return
+    private fun convertShareToDeepLink(intent: Intent?): Intent? {
+        if (intent?.action != Intent.ACTION_SEND) return null
+        if (intent.type != "text/plain") return null
 
-        val sharedText  = intent.getStringExtra(Intent.EXTRA_TEXT)  ?: return
+        val sharedText  = intent.getStringExtra(Intent.EXTRA_TEXT)  ?: return null
         val sharedTitle = intent.getStringExtra(Intent.EXTRA_SUBJECT) ?: ""
 
-        // Extract URL from shared text (Chrome shares the URL as plain text)
         val urlRegex = Regex("""https?://[^\s]+""")
-        val url = urlRegex.find(sharedText)?.value ?: run {
-            // Fallback: treat the entire text as the URL if it looks like one
-            if (sharedText.startsWith("http")) sharedText else return
-        }
+        val url = urlRegex.find(sharedText)?.value
+            ?: if (sharedText.startsWith("http")) sharedText else return null
 
         val encodedUrl   = Uri.encode(url)
         val encodedTitle = Uri.encode(sharedTitle)
         val deepLink     = Uri.parse("wishu://share-target?url=$encodedUrl&title=$encodedTitle")
 
-        // Post to the web layer via Capacitor bridge
-        bridge?.webView?.post {
-            bridge?.app?.fireAppUrlOpen(deepLink)
-        }
+        return Intent(Intent.ACTION_VIEW, deepLink)
     }
 }

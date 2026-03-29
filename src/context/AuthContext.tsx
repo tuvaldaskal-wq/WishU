@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
-import { User, onAuthStateChanged, signInWithPopup, signInWithRedirect, getRedirectResult, signOut } from 'firebase/auth';
+import { User, onAuthStateChanged, signInWithPopup, signInWithCredential, GoogleAuthProvider, getRedirectResult, signOut } from 'firebase/auth';
+import { Capacitor } from '@capacitor/core';
 import { auth, googleProvider, db } from '../lib/firebase';
 import { doc, onSnapshot, setDoc } from 'firebase/firestore';
 
@@ -45,21 +46,21 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
 
     const signInWithGoogle = async () => {
-        try {
-            // Use popup everywhere — Chrome on Android (S22/S23) and Samsung Internet both
-            // allow popups triggered by a direct user gesture (button tap).
-            // signInWithRedirect is broken on Chrome 115+ (Android 12/13) due to Storage
-            // Partitioning: the OAuth state saved before the redirect is cleared by the
-            // browser before the app regains control, so getRedirectResult() returns null
-            // and the user is silently stuck on the login screen.
-            await signInWithPopup(auth, googleProvider);
-        } catch (error: any) {
-            console.error("Google sign-in failed", error);
-            // Only fall back to redirect if the popup was explicitly blocked by the browser
-            // (e.g. WebView environments that disallow popups entirely).
-            if (error?.code === 'auth/popup-blocked') {
-                await signInWithRedirect(auth, googleProvider);
-            } else {
+        if (Capacitor.isNativePlatform()) {
+            // Native Android/iOS: use the Capacitor Google Auth plugin.
+            // This triggers the native Google account picker — no Chrome, no WebView popup.
+            // Requires: npm install @codetrix-studio/capacitor-google-auth
+            // and serverClientId set in capacitor.config.ts
+            const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+            const googleUser = await GoogleAuth.signIn();
+            const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+            await signInWithCredential(auth, credential);
+        } else {
+            // Web browser: standard Firebase popup flow
+            try {
+                await signInWithPopup(auth, googleProvider);
+            } catch (error: any) {
+                console.error("Google sign-in failed", error);
                 throw error;
             }
         }

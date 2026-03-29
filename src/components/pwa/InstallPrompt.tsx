@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Share, Heart, MoreVertical } from 'lucide-react';
 import { safeLocalStorage } from '../../lib/safe-storage';
+import { Capacitor } from '@capacitor/core';
 
 const InstallPrompt = () => {
     const { t } = useTranslation();
@@ -12,6 +13,9 @@ const InstallPrompt = () => {
     const [showManualInstruction, setShowManualInstruction] = useState(false);
 
     useEffect(() => {
+        // 0. Never show inside the native Android/iOS app — it's already installed
+        if (Capacitor.isNativePlatform()) return;
+
         // 1. Check if already installed (standalone mode)
         const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
         if (isStandalone) return;

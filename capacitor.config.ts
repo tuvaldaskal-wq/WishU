@@ -10,7 +10,14 @@ const config: CapacitorConfig = {
         // androidScheme: 'https',
     },
     plugins: {
-        // No extra plugin config needed — deep links handled via URL scheme below.
+        GoogleAuth: {
+            scopes: ['profile', 'email'],
+            // ⚠️  REPLACE with your actual Web Client ID from Firebase Console:
+            // Firebase Console → Project Settings → General → Your apps → Web app
+            // OR: Google Cloud Console → APIs & Services → Credentials → OAuth 2.0 Client IDs → Web client (auto created by Google Service)
+            serverClientId: 'REPLACE_WITH_YOUR_WEB_CLIENT_ID.apps.googleusercontent.com',
+            forceCodeForRefreshToken: true,
+        },
     },
     ios: {
         // URL scheme: wishu://
