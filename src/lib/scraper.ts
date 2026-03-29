@@ -1,5 +1,7 @@
 
 
+import { auth } from './firebase';
+
 export interface ScrapedData {
     title: string;
     description: string;
@@ -80,11 +82,15 @@ const fetchWithCloudFunction = async (url: string): Promise<CloudFunctionResult 
     console.log("Scraper: Calling Firebase Cloud Function for:", url);
 
     try {
+        // Get auth token for authenticated request
+        const idToken = await auth.currentUser?.getIdToken();
+
         // Direct HTTPS call instead of onCall to handle CORS better
         const response = await fetch('https://europe-west1-wishu-c16d5.cloudfunctions.net/scrapeProductDetails', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
+                ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {}),
             },
             body: JSON.stringify({ url }) // Send as simple JSON body
         });

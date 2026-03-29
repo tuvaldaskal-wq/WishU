@@ -56,5 +56,13 @@ export default defineConfig({
   ],
   build: {
     target: 'es2020',
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          'firebase': ['firebase/app', 'firebase/auth', 'firebase/firestore', 'firebase/storage', 'firebase/messaging'],
+          'framer-motion': ['framer-motion'],
+        }
+      }
+    }
   }
 })

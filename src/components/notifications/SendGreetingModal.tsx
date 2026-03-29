@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, PartyPopper, Gift, Sparkles, Share2, Loader2, Video } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { db, storage } from '../../lib/firebase';
-import { collection, addDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
+import { collection, addDoc, doc, setDoc, serverTimestamp, Timestamp } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
-import { VideoRecorder } from '../media/VideoRecorder';
+
+// Lazy-load VideoRecorder — only fetched when user taps "Record Video Message"
+const VideoRecorder = lazy(() => import('../media/VideoRecorder').then(m => ({ default: m.VideoRecorder })));
 
 interface SendGreetingModalProps {
     isOpen: boolean;
@@ -107,22 +109,26 @@ export const SendGreetingModal = ({ isOpen, onClose, recipient, eventType, event
                 read: false
             };
 
-            const docRef = await addDoc(collection(db, 'greetings'), greetingData);
+            // Pre-generate greeting ID so both writes can run in parallel
+            const greetingRef = doc(collection(db, 'greetings'));
 
-            // Create Notification
-            await addDoc(collection(db, 'notifications'), {
-                userId: recipient.uid,
-                type: 'greeting',
-                title: `Greeting received from ${user.displayName || 'a friend'}`,
-                message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
-                data: {
-                    greetingId: docRef.id,
-                    senderName: user.displayName || 'a friend'
-                },
-                read: false,
-                validFrom: validFrom, // Client-side filtering uses this
-                createdAt: serverTimestamp()
-            });
+            await Promise.all([
+                setDoc(greetingRef, greetingData),
+                addDoc(collection(db, 'notifications'), {
+                    userId: recipient.uid,
+                    senderId: user.uid,
+                    type: 'greeting',
+                    title: `Greeting received from ${user.displayName || 'a friend'}`,
+                    message: message.substring(0, 100) + (message.length > 100 ? '...' : ''),
+                    data: {
+                        greetingId: greetingRef.id,
+                        senderName: user.displayName || 'a friend'
+                    },
+                    read: false,
+                    validFrom: validFrom,
+                    createdAt: serverTimestamp()
+                })
+            ]);
 
             // Share Link
 
@@ -262,13 +268,15 @@ export const SendGreetingModal = ({ isOpen, onClose, recipient, eventType, event
                         exit={{ opacity: 0 }}
                         className="fixed inset-0 bg-black z-[70] flex items-center justify-center"
                     >
-                        <VideoRecorder
-                            onRecordingComplete={(blob) => {
-                                setVideoBlob(blob);
-                                setShowRecorder(false);
-                            }}
-                            onCancel={() => setShowRecorder(false)}
-                        />
+                        <Suspense fallback={<div className="text-white text-center">Loading camera...</div>}>
+                            <VideoRecorder
+                                onRecordingComplete={(blob) => {
+                                    setVideoBlob(blob);
+                                    setShowRecorder(false);
+                                }}
+                                onCancel={() => setShowRecorder(false)}
+                            />
+                        </Suspense>
                     </motion.div>
                 )}
             </AnimatePresence>

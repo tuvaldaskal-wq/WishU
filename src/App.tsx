@@ -1,4 +1,4 @@
-import { Suspense, useEffect } from 'react'
+import { Suspense, useEffect, lazy } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import { useDeepLink } from './hooks/useDeepLink'
 import { useTranslation } from 'react-i18next'
@@ -10,7 +10,6 @@ import CalendarPage from './pages/CalendarPage'
 import ProfilePage from './pages/ProfilePage'
 import GiftDetailPage from './pages/GiftDetailPage'
 import { useAuth } from './context/AuthContext'
-import { Top5Page } from './pages/Top5Page'
 import ShareTargetPage from './pages/ShareTargetPage'
 import GreetingView from './pages/GreetingView'
 import InstallPrompt from './components/pwa/InstallPrompt'
@@ -21,9 +20,12 @@ import './i18n'
 import InviteHandler from './pages/InviteHandler'
 import { InviteListener } from './components/InviteListener'
 import { MainLayout } from './components/layout/MainLayout'
-import AdminDashboard from './pages/AdminDashboard'
-import PurchasedGiftsPage from './pages/admin/PurchasedGiftsPage'
 import { AdminRoute } from './components/admin/AdminRoute'
+
+// Lazy-load heavy/admin-only pages to reduce initial bundle
+const Top5Page = lazy(() => import('./pages/Top5Page').then(m => ({ default: m.Top5Page })))
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'))
+const PurchasedGiftsPage = lazy(() => import('./pages/admin/PurchasedGiftsPage'))
 
 function App() {
     const { user, loading } = useAuth();

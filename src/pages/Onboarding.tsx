@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { collection, addDoc, doc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { collection, doc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../context/AuthContext';
 import { WizardLayout } from '../components/ui/WizardLayout';
@@ -70,45 +70,37 @@ const Onboarding = () => {
         if (!user) return;
         setLoading(true);
         try {
-            // 1. Create User Profile
             const userRef = doc(db, 'users', user.uid);
-            // using setDoc with merge to ensure it works even if doc doesn't exist
             const { setDoc } = await import('firebase/firestore');
-            await setDoc(userRef, {
-                uid: user.uid,
-                email: user.email,
-                displayName: name, // User confirmed name
-                photoURL: user.photoURL,
-                dob,
-                role: 'partner_a', // As per requirements
-                createdAt: serverTimestamp()
-            }, { merge: true });
 
-            // 2. Create Couple
-            const coupleRef = await addDoc(collection(db, 'couples'), {
-                partner1Id: user.uid,
-                partner1Name: name,
-                partner2Name: partnerName,
-                importantDates: dates.filter(d => d.title && d.date),
-                invitationMessage: message,
-                status: 'pending',
-                createdAt: serverTimestamp()
-            });
+            // Pre-generate couple doc ID so user + couple writes can run in parallel
+            const coupleDocRef = doc(collection(db, 'couples'));
 
-            // 3. Link user to couple
-            await updateDoc(userRef, {
-                coupleId: coupleRef.id
-            });
+            // 1 + 2. Create User Profile and Couple in parallel
+            await Promise.all([
+                setDoc(userRef, {
+                    uid: user.uid,
+                    email: user.email,
+                    displayName: name,
+                    photoURL: user.photoURL,
+                    dob,
+                    role: 'partner_a',
+                    coupleId: coupleDocRef.id,
+                    createdAt: serverTimestamp()
+                }, { merge: true }),
+                setDoc(coupleDocRef, {
+                    partner1Id: user.uid,
+                    partner1Name: name,
+                    partner2Name: partnerName,
+                    importantDates: dates.filter(d => d.title && d.date),
+                    invitationMessage: message,
+                    status: 'pending',
+                    createdAt: serverTimestamp()
+                })
+            ]);
 
-
-            // 4. Generate Link
-            // Using ?from=USER_ID format as requested in prompt mostly, but ID logic:
-            // "Takes the from ID from the URL" -> simpler to use Couple ID to find the record, 
-            // but let's see. If I use ?from=USER_ID, the invite page needs to query couples where partner1Id == USER_ID.
-            // Using /invite/COUPLE_ID is safer and faster (direct doc lookup).
-            // I will stick to /invite/COUPLE_ID but the prompt example was ?from=...
-            // I'll keep the existing working ID route.
-            const link = `${window.location.origin}/invite/${coupleRef.id}`;
+            // 3. Generate Link
+            const link = `${window.location.origin}/invite/${coupleDocRef.id}`;
             setInviteLink(link);
             setStep(prev => prev + 1); // Move to Step 4 (Success/Share)
 

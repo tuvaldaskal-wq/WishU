@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Users as UsersIcon, Check, X, Share2, Loader2, Sparkles, Search, UserPlus } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
-import { db } from '../lib/firebase';
+import { db, auth } from '../lib/firebase';
 import { collection, query, where, onSnapshot, updateDoc, deleteDoc, doc, getDocs, addDoc, serverTimestamp } from 'firebase/firestore';
 import { useSearch } from '../context/SearchContext';
 
@@ -38,29 +38,27 @@ const FriendsPage = () => {
         const unsubscribe = onSnapshot(q, async (snapshot) => {
             const allDocs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
 
-            // Process Pending Requests (Received)
-            const pending = await Promise.all(allDocs
-                .filter((d: any) => d.status === 'pending' && d.senderId !== user.uid)
-                .map(async (d: any) => {
-                    const senderId = d.senderId;
-                    const userSnap = await getDocs(query(collection(db, 'users'), where('__name__', '==', senderId)));
-                    const userData = userSnap.empty ? { displayName: 'Unknown' } : userSnap.docs[0].data();
-                    return { ...d, friend: { uid: senderId, ...userData } };
-                }));
+            // Process Pending + Accepted in parallel
+            const [pending, accepted] = await Promise.all([
+                Promise.all(allDocs
+                    .filter((d: any) => d.status === 'pending' && d.senderId !== user.uid)
+                    .map(async (d: any) => {
+                        const senderId = d.senderId;
+                        const userSnap = await getDocs(query(collection(db, 'users'), where('__name__', '==', senderId)));
+                        const userData = userSnap.empty ? { displayName: 'Unknown' } : userSnap.docs[0].data();
+                        return { ...d, friend: { uid: senderId, ...userData } };
+                    })),
+                Promise.all(allDocs
+                    .filter((d: any) => d.status === 'accepted')
+                    .map(async (d: any) => {
+                        const friendId = d.users.find((u: string) => u !== user.uid);
+                        if (!friendId) return null;
+                        const userSnap = await getDocs(query(collection(db, 'users'), where('__name__', '==', friendId)));
+                        const userData = userSnap.empty ? { displayName: 'User' } : userSnap.docs[0].data();
+                        return { ...d, friendId, friend: { uid: friendId, ...userData } };
+                    }))
+            ]);
             setPendingRequests(pending);
-
-            // Process Accepted Friends
-            const accepted = await Promise.all(allDocs
-                .filter((d: any) => d.status === 'accepted')
-                .map(async (d: any) => {
-                    const friendId = d.users.find((u: string) => u !== user.uid);
-                    if (!friendId) return null;
-
-                    const userSnap = await getDocs(query(collection(db, 'users'), where('__name__', '==', friendId)));
-                    const userData = userSnap.empty ? { displayName: 'User' } : userSnap.docs[0].data();
-                    return { ...d, friendId, friend: { uid: friendId, ...userData } };
-                }));
-
             setFriends(accepted.filter(Boolean));
 
             // Track all friend IDs (accepted + pending sent)
@@ -107,10 +105,14 @@ const FriendsPage = () => {
         const timer = setTimeout(async () => {
             setIsSearchingGlobal(true);
             try {
+                const idToken = await auth.currentUser?.getIdToken();
                 const response = await fetch(SEARCH_USERS_URL, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ query: searchQuery, requesterId: user.uid }),
+                    headers: {
+                        'Content-Type': 'application/json',
+                        ...(idToken ? { 'Authorization': `Bearer ${idToken}` } : {}),
+                    },
+                    body: JSON.stringify({ query: searchQuery }),
                 });
                 const data = await response.json();
 
@@ -150,6 +152,7 @@ const FriendsPage = () => {
             // Create notification for target user
             await addDoc(collection(db, 'notifications'), {
                 userId: targetUser.uid,
+                senderId: user.uid,
                 type: 'friend_request',
                 title: 'New Friend Request',
                 message: `${user.displayName || 'Someone'} wants to connect with you!`,

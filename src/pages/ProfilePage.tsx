@@ -48,14 +48,10 @@ const ProfilePage = () => {
     const [newDateTitle, setNewDateTitle] = useState('');
     const [newDateVal, setNewDateVal] = useState('');
     const [newDateType, setNewDateType] = useState('birthday');
-    // Local state for immediate UI feedback
-    const [localDates, setLocalDates] = useState<any[]>([]);
-
-    useEffect(() => {
-        if (userProfile?.importantDates) {
-            setLocalDates(userProfile.importantDates);
-        }
-    }, [userProfile]);
+    // Local state for immediate UI feedback — initialize from profile to avoid double render
+    const [localDates, setLocalDates] = useState<any[]>(
+        () => userProfile?.importantDates ?? []
+    );
 
     useEffect(() => {
         if (userProfile) {

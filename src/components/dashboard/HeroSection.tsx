@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Calendar, PartyPopper } from 'lucide-react';
 
@@ -15,30 +15,23 @@ interface HeroSectionProps {
 
 export const HeroSection = ({ dates, partnerName, message }: HeroSectionProps) => {
     const { t } = useTranslation();
-    const [nearestEvent, setNearestEvent] = useState<ImportantDate | null>(null);
     const [timeLeft, setTimeLeft] = useState<{ days: number; hours: number } | null>(null);
 
-    useEffect(() => {
-        if (!dates || dates.length === 0) return;
-
-        // Find nearest future date
+    // Derive nearest event during render — no extra re-render cycle
+    const nearestEvent = useMemo(() => {
+        if (!dates || dates.length === 0) return null;
         const now = new Date();
-        const futureDates = dates.map(d => {
-            const eventDate = new Date(d.date);
-            // If date is passed this year, look at next year
-            const currentYearDate = new Date(now.getFullYear(), eventDate.getMonth(), eventDate.getDate());
-            if (currentYearDate < now && currentYearDate.getDate() !== now.getDate()) {
-                currentYearDate.setFullYear(now.getFullYear() + 1);
-            }
-            return {
-                ...d,
-                targetDate: currentYearDate
-            };
-        }).sort((a, _b) => a.targetDate.getTime() - now.getTime());
-
-        if (futureDates.length > 0) {
-            setNearestEvent(futureDates[0]);
-        }
+        const sorted = dates
+            .map(d => {
+                const eventDate = new Date(d.date);
+                const currentYearDate = new Date(now.getFullYear(), eventDate.getMonth(), eventDate.getDate());
+                if (currentYearDate < now && currentYearDate.getDate() !== now.getDate()) {
+                    currentYearDate.setFullYear(now.getFullYear() + 1);
+                }
+                return { ...d, targetDate: currentYearDate };
+            })
+            .sort((a, b) => a.targetDate.getTime() - b.targetDate.getTime());
+        return sorted[0] ?? null;
     }, [dates]);
 
     useEffect(() => {

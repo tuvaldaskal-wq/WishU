@@ -50,6 +50,63 @@ interface ScrapedResult {
 }
 
 // ============================================================================
+// AUTH & SECURITY HELPERS
+// ============================================================================
+
+/**
+ * Verify Firebase ID token from Authorization header.
+ * Returns the decoded token (with uid) or null if invalid.
+ */
+async function verifyAuth(req: functions.https.Request): Promise<admin.auth.DecodedIdToken | null> {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+        return null;
+    }
+    const idToken = authHeader.split('Bearer ')[1];
+    try {
+        return await admin.auth().verifyIdToken(idToken);
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Validate that a URL is safe to fetch (no SSRF).
+ * Blocks internal IPs, metadata endpoints, and non-http(s) schemes.
+ */
+function isSafeUrl(url: string): boolean {
+    try {
+        const parsed = new URL(url);
+        // Only allow http and https
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+            return false;
+        }
+        const hostname = parsed.hostname.toLowerCase();
+        // Block cloud metadata endpoints
+        if (hostname === '169.254.169.254' || hostname === 'metadata.google.internal') {
+            return false;
+        }
+        // Block localhost
+        if (hostname === 'localhost' || hostname === '127.0.0.1' || hostname === '::1' || hostname === '0.0.0.0') {
+            return false;
+        }
+        // Block private/internal IP ranges
+        const parts = hostname.split('.');
+        if (parts.length === 4 && parts.every(p => /^\d+$/.test(p))) {
+            const first = parseInt(parts[0]);
+            const second = parseInt(parts[1]);
+            if (first === 10) return false;                              // 10.0.0.0/8
+            if (first === 172 && second >= 16 && second <= 31) return false; // 172.16.0.0/12
+            if (first === 192 && second === 168) return false;           // 192.168.0.0/16
+            if (first === 169 && second === 254) return false;           // 169.254.0.0/16
+        }
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+// ============================================================================
 // HELPER FUNCTIONS
 // ============================================================================
 
@@ -596,11 +653,24 @@ export const scrapeProductDetails = functions
 
         getAdmin(); // Ensure initialization
 
+        // Authenticate the caller
+        const decodedToken = await verifyAuth(req);
+        if (!decodedToken) {
+            res.status(401).send({ error: "Unauthorized: valid Firebase ID token required" });
+            return;
+        }
+
         const body = req.body;
         const url = (body.data && body.data.url) ? body.data.url : body.url;
 
         if (!url) {
             res.status(400).send({ title: "", description: "", image: "", error: "No URL" });
+            return;
+        }
+
+        // SSRF protection: block internal/metadata URLs
+        if (!isSafeUrl(url)) {
+            res.status(400).send({ title: "", description: "", image: "", error: "Invalid URL" });
             return;
         }
 
@@ -713,9 +783,16 @@ export const searchUsers = functions
 
         getAdmin();
 
+        // Authenticate the caller
+        const decodedToken = await verifyAuth(req);
+        if (!decodedToken) {
+            res.status(401).send({ error: "Unauthorized: valid Firebase ID token required", users: [] });
+            return;
+        }
+
         const body = req.body;
         const query = (body.data?.query || body.query || '').toLowerCase().trim();
-        const requesterId = body.data?.requesterId || body.requesterId;
+        const requesterId = decodedToken.uid;
 
         if (!query || query.length < 2) {
             res.status(400).send({ error: 'Query must be at least 2 characters', users: [] });
@@ -898,6 +975,14 @@ export const createWishlist = functions
 
         try {
             getAdmin(); // Ensure initialization
+
+            // Authenticate the caller
+            const decodedToken = await verifyAuth(req);
+            if (!decodedToken) {
+                res.status(401).send({ error: "Unauthorized: valid Firebase ID token required" });
+                return;
+            }
+
             const { title, description, occassion, date } = req.body;
 
             // Basic Validation
@@ -912,7 +997,8 @@ export const createWishlist = functions
                 occassion: occassion || null,
                 targetDate: date ? new Date(date) : null,
                 createdAt: admin.firestore.FieldValue.serverTimestamp(),
-                itemCount: 0
+                itemCount: 0,
+                ownerId: decodedToken.uid
             };
 
             const docRef = await admin.firestore().collection("wishlists").add(wishlistData);

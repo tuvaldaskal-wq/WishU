@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { GiftCard, Gift } from '../components/gifts/GiftCard';
 import { collection, query, where, onSnapshot, doc, getDoc, getDocs } from 'firebase/firestore';
@@ -56,125 +56,121 @@ const FriendWall = () => {
         return () => resetHeader();
     }, []);
 
+    // Memoize bottom bar to avoid rebuilding JSX on every render
+    const customBottomBar = useMemo(() => (
+        <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
+            <button
+                onClick={() => navigate('/calendar')}
+                className="px-3 py-1.5 bg-accent text-white rounded-full text-xs font-bold whitespace-nowrap shadow-sm shadow-accent/20 flex items-center gap-1 flex-shrink-0"
+            >
+                Offer Wish 🎁
+            </button>
+            <div className="w-[1px] h-6 bg-slate-100 mx-1 flex-shrink-0" />
+            {[
+                { id: 'all', label: 'All' },
+                { id: 'low', label: '<249₪' },
+                { id: 'mid', label: '250-399₪' },
+                { id: 'high', label: '400-699₪' },
+                { id: 'premium', label: '700₪+' }
+            ].map(f => (
+                <button
+                    key={f.id}
+                    onClick={() => setPriceFilter(f.id as any)}
+                    className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 border ${priceFilter === f.id
+                        ? 'bg-darkbg text-white border-darkbg'
+                        : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'
+                        }`}
+                >
+                    {f.label}
+                </button>
+            ))}
+        </div>
+    ), [priceFilter, navigate]);
+
     // Update Header when state changes
     useEffect(() => {
         setHeaderState({
             title: isOwner ? 'My Wishlist' : `${friendName}'s Wishlist`,
             showBackButton: true,
             showSearch: false,
-            customBottomBar: (
-                <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-                    <button
-                        onClick={() => navigate('/calendar')}
-                        className="px-3 py-1.5 bg-accent text-white rounded-full text-xs font-bold whitespace-nowrap shadow-sm shadow-accent/20 flex items-center gap-1 flex-shrink-0"
-                    >
-                        Offer Wish 🎁
-                    </button>
-                    <div className="w-[1px] h-6 bg-slate-100 mx-1 flex-shrink-0" />
-                    {[
-                        { id: 'all', label: 'All' },
-                        { id: 'low', label: '<249₪' },
-                        { id: 'mid', label: '250-399₪' },
-                        { id: 'high', label: '400-699₪' },
-                        { id: 'premium', label: '700₪+' }
-                    ].map(f => (
-                        <button
-                            key={f.id}
-                            onClick={() => setPriceFilter(f.id as any)}
-                            className={`px-4 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-colors flex-shrink-0 border ${priceFilter === f.id
-                                ? 'bg-darkbg text-white border-darkbg'
-                                : 'bg-slate-50 text-slate-500 border-slate-100 hover:bg-slate-100'
-                                }`}
-                        >
-                            {f.label}
-                        </button>
-                    ))}
-                </div>
-            )
+            customBottomBar
         });
-    }, [friendName, isOwner, priceFilter]);
+    }, [friendName, isOwner, customBottomBar]);
 
     useEffect(() => {
         if (!id || !user) return;
 
         let assignedGroup = 'Friends'; // Default fallback
+        let unsubscribeGifts: (() => void) | undefined;
 
-        // 1. Fetch Friendship to get MY assigned group
-        const fetchPermissions = async () => {
-            const q = query(collection(db, 'friendships'), where('users', 'array-contains', user.uid));
-            const snap = await getDocs(q);
-            const friendship = snap.docs.find(d => d.data().users.includes(id));
+        const init = async () => {
+            // 1. Fetch permissions + profile in parallel
+            const [permGroup] = await Promise.all([
+                // Fetch Friendship to get MY assigned group
+                (async () => {
+                    const q = query(collection(db, 'friendships'), where('users', 'array-contains', user.uid));
+                    const snap = await getDocs(q);
+                    const friendship = snap.docs.find(d => d.data().users.includes(id));
+                    if (friendship) {
+                        const groups = friendship.data().groups || {};
+                        return groups[user.uid] || 'Friends';
+                    }
+                    return 'Friends';
+                })(),
+                // Fetch Friend Profile & Next Event
+                (async () => {
+                    try {
+                        const userDoc = await getDoc(doc(db, 'users', id));
+                        if (userDoc.exists()) {
+                            const d = userDoc.data();
+                            setFriendName(d.displayName || 'Friend');
 
-            if (friendship) {
-                const groups = friendship.data().groups || {};
-                if (groups[user.uid]) {
-                    assignedGroup = groups[user.uid];
-                }
-            }
-        };
+                            let nearest: { title: string; date: Date; diff: number } | null = null;
+                            const today = new Date();
+                            today.setHours(0, 0, 0, 0);
 
-        // 2. Fetch Friend Profile & Next Event
-        const fetchProfile = async () => {
-            try {
-                const userDoc = await getDoc(doc(db, 'users', id));
-                if (userDoc.exists()) {
-                    const d = userDoc.data();
-                    setFriendName(d.displayName || 'Friend');
+                            const checkDate = (dateStr: string, title: string) => {
+                                const next = getNextEventDate(dateStr);
+                                if (next) {
+                                    const diff = next.date.getTime() - today.getTime();
+                                    if (diff >= 0 && (!nearest || diff < nearest.diff)) {
+                                        nearest = { title, date: next.date, diff };
+                                    }
+                                }
+                            };
 
-                    // Calculate Nearest Event
-                    let nearest: { title: string; date: Date; diff: number } | null = null;
-                    const today = new Date();
-                    today.setHours(0, 0, 0, 0);
+                            if (d.birthDate) checkDate(d.birthDate, 'Birthday');
+                            if (d.importantDates && Array.isArray(d.importantDates)) {
+                                d.importantDates.forEach((imp: any) => checkDate(imp.date, imp.title || 'Special Day'));
+                            }
 
-                    const checkDate = (dateStr: string, title: string) => {
-                        const next = getNextEventDate(dateStr);
-                        if (next) {
-                            const diff = next.date.getTime() - today.getTime();
-                            if (diff >= 0 && (!nearest || diff < nearest.diff)) {
-                                nearest = { title, date: next.date, diff };
+                            if (nearest) {
+                                setNextEvent({ title: (nearest as any).title, date: (nearest as any).date });
                             }
                         }
-                    };
+                    } catch (e) { console.error(e); }
+                })()
+            ]);
 
-                    if (d.birthDate) checkDate(d.birthDate, 'Birthday');
-                    if (d.importantDates && Array.isArray(d.importantDates)) {
-                        d.importantDates.forEach((imp: any) => checkDate(imp.date, imp.title || 'Special Day'));
-                    }
+            assignedGroup = permGroup;
 
-                    if (nearest) {
-                        setNextEvent({ title: (nearest as any).title, date: (nearest as any).date });
-                    }
-                }
-            } catch (e) { console.error(e); }
-        };
-
-        // 3. Fetch Gifts & Apply Filter
-        const fetchGifts = async () => {
-            await fetchPermissions(); // Ensure we know our group first
-
+            // 2. Now subscribe to gifts with the resolved group
             const q = query(collection(db, 'gifts'), where('ownerId', '==', id));
-
-            // Real-time listener
-            const unsubscribe = onSnapshot(q, (snapshot) => {
+            unsubscribeGifts = onSnapshot(q, (snapshot) => {
                 const allGifts = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Gift));
-
-                // Filter Logic
                 const visibleGifts = allGifts.filter(g => {
                     if (!g.visibility || g.visibility.length === 0) return true;
                     return g.visibility.includes(assignedGroup);
                 });
-
                 visibleGifts.sort((a, b) => (b.createdAt?.seconds || 0) - (a.createdAt?.seconds || 0));
                 setGifts(visibleGifts);
                 setLoading(false);
             });
-            return unsubscribe; // Return cleanup
         };
 
-        fetchProfile();
-        const unsubPromise = fetchGifts();
+        init();
 
-        return () => { unsubPromise.then(unsub => unsub && unsub()); };
+        return () => { unsubscribeGifts?.(); };
     }, [id, user]);
 
     // Price Parsing Helper

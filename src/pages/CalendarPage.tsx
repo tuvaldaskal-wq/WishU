@@ -121,20 +121,20 @@ const CalendarPage = () => {
                     }
                 });
 
-                // 3. Automated Birthday Notifications
+                // 3. Automated Birthday Notifications (parallel)
                 // Check if any birthdays are in the next 3 days and create notifications
                 const upcomingBdays = loadedEvents.filter(e => e.type === 'birthday' && e.daysLeft <= 3);
-                for (const bday of upcomingBdays) {
-                    const currentYear = new Date().getFullYear();
-                    const notifId = `bday_${bday.friendId}_${currentYear}`;
+                const currentYear = new Date().getFullYear();
 
-                    // Check if we already created this notif
+                await Promise.all(upcomingBdays.map(async (bday) => {
+                    const notifId = `bday_${bday.friendId}_${currentYear}`;
                     const checkQ = query(collection(db, 'notifications'), where('userId', '==', user.uid), where('data.notifKey', '==', notifId));
                     const checkSnap = await getDocs(checkQ);
 
                     if (checkSnap.empty) {
                         await addDoc(collection(db, 'notifications'), {
                             userId: user.uid,
+                            senderId: user.uid,
                             type: 'birthday',
                             title: `${bday.friendName}'s birthday is approaching!`,
                             message: `It's in ${bday.daysLeft} ${bday.daysLeft === 1 ? 'day' : 'days'}. Check their wishlist for ideas.`,
@@ -147,7 +147,7 @@ const CalendarPage = () => {
                             createdAt: serverTimestamp()
                         });
                     }
-                }
+                }));
 
                 // Sort by nearest date
                 loadedEvents.sort((a, b) => a.daysLeft - b.daysLeft);

@@ -1,15 +1,17 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { BottomNav } from '../BottomNav';
 import { AnimatePresence } from 'framer-motion';
-import { AddGift } from '../gifts/AddGift';
 import { ModalProvider, useModal } from '../../context/ModalContext';
 import { NotificationProvider } from '../../context/NotificationContext';
-import { EditGiftModal } from '../gifts/EditGiftModal';
-import { GreetingModal } from '../notifications/GreetingModal';
 import { GlobalHeader } from './GlobalHeader';
 import { SearchProvider } from '../../context/SearchContext';
 import { HeaderProvider } from '../../context/HeaderContext';
+
+// Lazy-load modals — only fetched when user opens them
+const AddGift = lazy(() => import('../gifts/AddGift').then(m => ({ default: m.AddGift })));
+const EditGiftModal = lazy(() => import('../gifts/EditGiftModal').then(m => ({ default: m.EditGiftModal })));
+const GreetingModal = lazy(() => import('../notifications/GreetingModal').then(m => ({ default: m.GreetingModal })));
 
 interface LocationState {
     openAddGift?: boolean;
@@ -84,30 +86,36 @@ const MainLayoutContent = () => {
             {/* Global Add Gift Modal */}
             <AnimatePresence>
                 {showAddGift && (
-                    <AddGift
-                        onClose={handleCloseAddGift}
-                        initialUrl={sharedUrl}
-                        initialPrice={sharedPrice}
-                        initialImage={sharedImage}
-                    />
+                    <Suspense fallback={null}>
+                        <AddGift
+                            onClose={handleCloseAddGift}
+                            initialUrl={sharedUrl}
+                            initialPrice={sharedPrice}
+                            initialImage={sharedImage}
+                        />
+                    </Suspense>
                 )}
             </AnimatePresence>
 
             {/* Global Edit Gift Modal (Fixed Stacking) */}
             <AnimatePresence>
                 {editingGift && (
-                    <EditGiftModal
-                        gift={editingGift}
-                        onClose={() => setEditingGift(null)}
-                    />
+                    <Suspense fallback={null}>
+                        <EditGiftModal
+                            gift={editingGift}
+                            onClose={() => setEditingGift(null)}
+                        />
+                    </Suspense>
                 )}
             </AnimatePresence>
 
             {/* Global Greeting Modal */}
-            <GreetingModal
-                greetingId={openGreetingId}
-                onClose={() => setOpenGreetingId(null)}
-            />
+            <Suspense fallback={null}>
+                <GreetingModal
+                    greetingId={openGreetingId}
+                    onClose={() => setOpenGreetingId(null)}
+                />
+            </Suspense>
         </div>
     );
 };

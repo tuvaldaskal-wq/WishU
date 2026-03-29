@@ -43,28 +43,19 @@ const AdminDashboard = () => {
                 const greetingsCol = collection(db, 'greetings');
                 const notifsCol = collection(db, 'NotificationQueue');
 
-                // Using getCountFromServer for efficient counting
-                const [usersSnap, giftsSnap, greetingsSnap, recentNotifsSnap] = await Promise.all([
+                // Fetch all counts + queries in parallel
+                const purchasedQuery = query(giftsCol, where('status', '==', 'purchased'));
+                const [usersSnap, giftsSnap, greetingsSnap, recentNotifsSnap, notifSnapResult, purchasedSnap] = await Promise.all([
                     getCountFromServer(usersCol),
                     getCountFromServer(giftsCol),
                     getCountFromServer(greetingsCol),
-                    getDocs(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(5)))
+                    getDocs(query(collection(db, 'notifications'), orderBy('createdAt', 'desc'), limit(5))),
+                    getCountFromServer(notifsCol).catch(() => null),
+                    getDocs(purchasedQuery)
                 ]);
 
                 console.log("Recent notifications:", recentNotifsSnap.docs.map(d => d.data()));
-
-                // Handle NotificationQueue separately as it might not exist yet or be empty
-                let notifCount = 0;
-                try {
-                    const notifSnap = await getCountFromServer(notifsCol);
-                    notifCount = notifSnap.data().count;
-                } catch (e) {
-                    console.log("NotificationQueue collection might not exist yet", e);
-                }
-
-                // Fetch Purchased Gifts & Calculate Value
-                const purchasedQuery = query(giftsCol, where('status', '==', 'purchased'));
-                const purchasedSnap = await getDocs(purchasedQuery);
+                const notifCount = notifSnapResult?.data().count ?? 0;
                 const purchasedCount = purchasedSnap.size;
 
                 let totalValue = 0;
@@ -194,6 +185,7 @@ const AdminDashboard = () => {
                                 const { addDoc, collection, serverTimestamp } = await import('firebase/firestore');
                                 await addDoc(collection(db, 'notifications'), {
                                     userId: user.uid,
+                                    senderId: user.uid,
                                     title: 'Test from Dashboard v2',
                                     message: `This is a valid test! (User: ${user.email})`,
                                     type: 'test',
