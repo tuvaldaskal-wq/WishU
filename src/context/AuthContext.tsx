@@ -47,14 +47,15 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
 
     const signInWithGoogle = async () => {
         if (Capacitor.isNativePlatform()) {
-            // Native Android/iOS: use the Capacitor Google Auth plugin.
-            // This triggers the native Google account picker — no Chrome, no WebView popup.
-            // Requires: npm install @codetrix-studio/capacitor-google-auth
-            // and serverClientId set in capacitor.config.ts
-            const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
-            const googleUser = await GoogleAuth.signIn();
-            const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
-            await signInWithCredential(auth, credential);
+            try {
+                const { GoogleAuth } = await import('@codetrix-studio/capacitor-google-auth');
+                const googleUser = await GoogleAuth.signIn();
+                const credential = GoogleAuthProvider.credential(googleUser.authentication.idToken);
+                await signInWithCredential(auth, credential);
+            } catch (error: any) {
+                console.error('[WishU] Native Google Sign-In failed:', error?.message || JSON.stringify(error));
+                throw error;
+            }
         } else {
             // Web browser: standard Firebase popup flow
             try {

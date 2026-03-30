@@ -7,17 +7,17 @@
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:159437089644:android:ee38eb70ba579cad2fa149",
+        "mobilesdk_app_id": "1:159437089644:android:2eadbd7332e70cb82fa149",
         "android_client_info": {
-          "package_name": "com.wishy.app"
+          "package_name": "com.wishu.app"
         }
       },
       "oauth_client": [
         {
-          "client_id": "159437089644-hj2l0f4bh6tle4n6adc80bcm63ahnul8.apps.googleusercontent.com",
+          "client_id": "159437089644-fio4gqqfd287hmejfpr2b6kf7e6b270o.apps.googleusercontent.com",
           "client_type": 1,
           "android_info": {
-            "package_name": "com.wishy.app",
+            "package_name": "com.wishu.app",
             "certificate_hash": "c791157c4d5994193493f2d15a2db5cf69176679"
           }
         },

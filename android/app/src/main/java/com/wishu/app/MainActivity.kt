@@ -1,35 +1,24 @@
-package com.wishu.app
+﻿package com.wishy.app
 
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
 import com.getcapacitor.BridgeActivity
+import com.codetrixstudio.capacitor.GoogleAuth.GoogleAuth
 
 class MainActivity : BridgeActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
-        // Convert a cold-start share intent BEFORE super.onCreate so the bridge
-        // sees a clean ACTION_VIEW deep-link intent from the very first frame.
+        registerPlugin(GoogleAuth::class.java)
         intent = convertShareToDeepLink(intent) ?: intent
         super.onCreate(savedInstanceState)
     }
 
     override fun onNewIntent(intent: Intent) {
-        // Convert a warm-start share intent, then let the bridge handle the
-        // resulting ACTION_VIEW intent — the App plugin fires 'appUrlOpen' for us.
         val processedIntent = convertShareToDeepLink(intent) ?: intent
         super.onNewIntent(processedIntent)
     }
 
-    /**
-     * If the given intent is an ACTION_SEND text/plain share, converts it into
-     * an ACTION_VIEW intent pointing at wishu://share-target?url=...&title=...
-     *
-     * Capacitor's App plugin handles ACTION_VIEW intents natively and fires the
-     * 'appUrlOpen' event that src/hooks/useDeepLink.ts listens for.
-     *
-     * Returns null if the intent is not a share or has no extractable URL.
-     */
     private fun convertShareToDeepLink(intent: Intent?): Intent? {
         if (intent?.action != Intent.ACTION_SEND) return null
         if (intent.type != "text/plain") return null
