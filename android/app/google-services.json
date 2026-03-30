@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "159437089644",
+    "project_id": "wishu-c16d5",
+    "storage_bucket": "wishu-c16d5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:159437089644:android:ee38eb70ba579cad2fa149",
+        "android_client_info": {
+          "package_name": "com.wishy.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "159437089644-hj2l0f4bh6tle4n6adc80bcm63ahnul8.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.wishy.app",
+            "certificate_hash": "c791157c4d5994193493f2d15a2db5cf69176679"
+          }
+        },
+        {
+          "client_id": "159437089644-aj33vja68rhvcis51qdu6jm73psl4g03.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC0sF-Zl2lTE3M7Ya2mY1Np-gDKiWI0exw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "159437089644-aj33vja68rhvcis51qdu6jm73psl4g03.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
